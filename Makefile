@@ -13,14 +13,14 @@ publish: pull-public build
 	cd public && \
 		git add -A && \
 		git commit -am "Update site" && \
-		git push site gh-pages
+		git push origin master
 
 pull-public: public
-	cd public && git pull site gh-pages && git checkout gh-pages
+	cd public && git pull origin master && git checkout master
 
 public:
 	mkdir -p public
-	git clone $(ORIGIN_URL) public -b gh-pages
+	git clone $(ORIGIN_URL) public -b master
 
 clean:
 	@rm -rf public
