@@ -1,18 +1,26 @@
 BASE_URL := $(shell cat config.toml | grep baseurl | cut -d ' ' -f 3)
 
-SUBTREE_ARGS := --prefix=public git@github.com:Technius/blog.git gh-pages
+ORIGIN_URL := $(shell git config remote.origin.url)
 
-.PHONY: build publish pull-public
+.PHONY: build publish pull-public clean
 build:
-	echo $(BASE_URL)
+	@echo $(BASE_URL)
 	@git submodule init
 	@git submodule update
 	@hugo
 
 publish: pull-public build
-	git subtree push $(SUBTREE_ARGS)
-	echo "TODO"
+	cd public && \
+		git add -A && \
+		git commit -am "Update site" && \
+		git push site gh-pages
 
-# For avoiding merge conflicts w/ publish
-pull-public:
-	git subtree pull $(SUBTREE_ARGS)
+pull-public: public
+	cd public && git pull site gh-pages && git checkout gh-pages
+
+public:
+	mkdir -p public
+	git clone $(ORIGIN_URL) public -b gh-pages
+
+clean:
+	@rm -rf public
