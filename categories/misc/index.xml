@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Misc on Technius&#39; Blog</title>
+    <link>https://technius.github.io/categories/misc/</link>
+    <description>Recent content in Misc on Technius&#39; Blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 17 Dec 2016 00:00:00 +0000</lastBuildDate>
+    <atom:link href="https://technius.github.io/categories/misc/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>About This Blog</title>
+      <link>https://technius.github.io/about/</link>
+      <pubDate>Sat, 17 Dec 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://technius.github.io/about/</guid>
+      <description>&lt;p&gt;Hi! I&amp;rsquo;m Bryan Tan, a senior in high school with a love for computer science and
+technology. In particular, I enjoy writing and refining code to be as elegant
+as possible. Check out my posts to get a glimpse of what I like to do!&lt;/p&gt;
+
+&lt;p&gt;This blog was generated using &lt;a href=&#34;https://gohugo.io/&#34;&gt;Hugo&lt;/a&gt; and uses the &lt;a href=&#34;https://github.com/gizak/nofancy/&#34;&gt;nofancy
+theme&lt;/a&gt; by Zack Guo.&lt;/p&gt;
+</description>
+    </item>
+    
+    <item>
+      <title>Hello world!</title>
+      <link>https://technius.github.io/post/hello/</link>
+      <pubDate>Thu, 15 Dec 2016 00:00:00 +0000</pubDate>
+      
+      <guid>https://technius.github.io/post/hello/</guid>
+      <description>&lt;p&gt;&lt;em&gt;Obligatory hello world post.&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;I&amp;rsquo;m setting up a blog again , but this time, I&amp;rsquo;m planning on actually posting
+stuff! This time, the goal is to improve my writing skills; though my grammar is
+quite good, I&amp;rsquo;m terrible at writing anything other than directions, code, or
+technical explanations (though I&amp;rsquo;ll &lt;em&gt;probably&lt;/em&gt; end up spending most of my time
+on these types of writing). In particular, I have a &lt;em&gt;really&lt;/em&gt; hard time putting
+essays together. I&amp;rsquo;m going to use this blog to practice.&lt;/p&gt;
+
+&lt;p&gt;Currently, I&amp;rsquo;m trying to figure out a nice, declarative, type-safe way to write
+a game engine in Scala. There&amp;rsquo;s a lot of interesting ways to approach it, but
+I&amp;rsquo;ve settled on a hybrid mutable/immutable approach: the mutable part is just to
+avoid allocations that&amp;rsquo;ll clog up the garbage collector, and the immutable part
+will make automated testing feasible. I&amp;rsquo;ve been intermittently working on this
+idea for almost a year now, so I&amp;rsquo;m really looking forward to seeing what I&amp;rsquo;ll
+end up with.&lt;/p&gt;
+
+&lt;p&gt;I&amp;rsquo;m also trying to learn Rust. Seriously, Rust is a really cool language.  It&amp;rsquo;s
+fast (as in runtime), has a strong type system, and includes a lot of convenient
+features like pattern matching and typeclasses. I&amp;rsquo;ll be uploading a little
+calculator program written in Rust in a short while; feel free to check it out!&lt;/p&gt;
+
+&lt;p&gt;In any case, stay tuned for more! I&amp;rsquo;ll try to publish at least once-a-month, but
+I can&amp;rsquo;t make any guarantees.&lt;/p&gt;
+</description>
+    </item>
+    
+  </channel>
+</rss>
