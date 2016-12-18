@@ -1,0 +1,10 @@
+baseurl = "https://technius.github.io/"
+languageCode = "en-us"
+title = "Technius' Blog"
+newContentEditor = "vim"
+theme = "nofancy"
+description = "Random thoughts and ideas"
+
+[author]
+name = "Technius"
+github = "Technius"
