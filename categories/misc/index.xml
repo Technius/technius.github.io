@@ -2,11 +2,10 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Misc on Technius&#39; Blog</title>
-    <link>https://technius.github.io/categories/misc/</link>
+    <link>https://technius.github.io/categories/misc/index.xml</link>
     <description>Recent content in Misc on Technius&#39; Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Sat, 17 Dec 2016 00:00:00 +0000</lastBuildDate>
     <atom:link href="https://technius.github.io/categories/misc/index.xml" rel="self" type="application/rss+xml" />
     
     <item>

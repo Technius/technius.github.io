@@ -1,0 +1,349 @@
+<html lang="en">
+<head>
+
+  
+  <meta charset="utf-8">
+  <title>Creating a Calculator in Rust, Part 1</title>
+  <meta name="description" content="Creating a Calculator in Rust, Part 1">
+  <meta name="author" content="Technius">
+
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="https://technius.github.io/css/fonts.css">
+  
+  
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.6.0/pure-min.css">
+  
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.6.0/grids-responsive-min.css">
+
+  <link rel="stylesheet" href="https://technius.github.io/css/custom.css">
+
+  
+  
+  <link rel="stylesheet" href="https://technius.github.io/highlight/styles/default.css">
+  
+  <script src="https://technius.github.io/highlight/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+<body>
+
+
+<div class="header pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+    <div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="desktop pure-menu pure-menu-horizontal nav-menu">
+            
+            <a href="https://technius.github.io/" class="site-title pure-menu-heading">Technius&#39; Blog</a>
+            <ul class="pure-menu-list">
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/misc" class="pure-menu-link">Misc</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/about/" class="pure-menu-link">About</a>
+                </li>
+            </ul>
+        </div>
+        <div class="mobile pure-menu nav-menu">
+            <a href="/" class="pure-menu-heading" id="toggle-home">Technius&#39; Blog</a>
+            <a href="#" id="toggle-btn">&#9776;</a>
+            <ul class="pure-menu-list" id="toggle-content" style="display:none;">
+                
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/misc" class="pure-menu-link">Misc</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/about" class="pure-menu-link">About</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+
+<div class="pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+	<div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="post">
+
+            <div class="post-title">
+                <p class="footnote">
+                    <time class="">2017-01-13</time>
+		            
+                    
+                    
+
+                    
+
+                    
+                </p>
+                <h1>Creating a Calculator in Rust, Part 1</h1>
+            </div>
+
+            <div class="post-content">
+                
+
+<p>As an exercise to learn more about Rust, I decided to write a calculator
+program. It&rsquo;s able to evaluate arbitrary numerical expressions (i.e.
+<code>2 * 3^5 / 3</code>), as well as simple algebraic expressions (i.e. <code>3x + 5x</code>). These
+articles will document some of the hurdles that I ran into, as well as the
+solutions that I came up with. Well, let&rsquo;s not linger any longer and jump right
+in!</p>
+
+<h1 id="defining-the-ast">Defining the AST</h1>
+
+<p>After creating the project files with <code>cargo</code>, let&rsquo;s start by defining the
+<a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree">abstract syntax tree</a> that
+represents each numerical expression. An easy way to do that is to come up with
+some sample expressions that we want to evaluate, such as</p>
+
+<ul>
+<li><code>1 + 1 - 2</code></li>
+<li><code>3 * 2</code></li>
+<li><code>5 / 3</code></li>
+<li><code>(1 + 1) * 2</code></li>
+<li><code>3x + 5x</code></li>
+</ul>
+
+<p>Based on the first example, it seems like we&rsquo;ll need a term to represent a
+constant, as well as a term to represent a sum. Subtraction (i.e <code>2 - 1</code>) is
+special case of a sum with a negative term, so we don&rsquo;t have to add a term for
+it. Next, we&rsquo;ll need terms for multiplication and division. We can&rsquo;t just use
+one term for both like we can for addition and subtraction, since it&rsquo;s possible
+to multiply by zero but not divide by zero. Let&rsquo;s go ahead and sketch out the
+initial enum:</p>
+
+<pre><code class="language-rust">enum Expr {
+    Const(f64),
+    Sum(f64, f64),
+    Product(f64, f64),
+    Quotient(f64, f64)
+}
+</code></pre>
+
+<p>There&rsquo;s a problem with this representation, though; we can&rsquo;t express chained
+operations like <code>1 + 1 * 2</code>. We&rsquo;ll have to modify the enum to hold Expr instead.
+The simplest approach may be to replace the <code>f64</code>s in <code>Sum</code>, <code>Product</code>, and
+<code>Quotient</code> with <code>Expr</code>:</p>
+
+<pre><code class="language-rust">enum Expr {
+    Const(f64),
+    Sum(Expr, Expr),
+    Product(Expr, Expr),
+    Quotient(Expr, Expr)
+}
+</code></pre>
+
+<p>Unfortunately, this fails to compile:</p>
+
+<pre><code>error[E0072]: recursive type `Expr` has infinite size
+</code></pre>
+
+<p>A <code>Sum</code> could contain infinitely many <code>Sum</code>s, for example, so it would be
+impossible for Rust to determine how large an Expr would be. Instead, we&rsquo;ll have
+to use references inside of each recursive term. We could write <code>&amp;Expr</code>, but then
+we&rsquo;d have to manage a lot of lifetimes. Instead, let&rsquo;s use <code>Box</code>:</p>
+
+<pre><code class="language-rust">enum Expr {
+    Const(f64),
+    Sum(Box&lt;Expr&gt;, Box&lt;Expr&gt;),
+    Product(Box&lt;Expr&gt;, Box&lt;Expr&gt;),
+    Quotient(Box&lt;Expr&gt;, Box&lt;Expr&gt;)
+}
+</code></pre>
+
+<p>Great, it compiles! Let&rsquo;s try it out by writing out <code>1 + 1</code> and <code>1 + 1 * 2</code>:</p>
+
+<pre><code class="language-rust">let one_plus_one =
+    Expr::Sum(
+        Box::new(Expr::Const(1.0)),
+	Box::new(Expr::Const(1.0))
+    );
+
+let one_plus_one_times_two = 
+    Expr::Sum(
+        Box::new(Expr::Const(1.0)),
+	Box::new(
+	    Expr::Product(
+	        Box::new(Expr::Const(1.0)),
+	        Box::new(Expr::Const(2.0))
+	    )
+	)
+    );
+</code></pre>
+
+<p>Unfortunately, it requires a lot of boilerplate, but it works. After adding <code>#[derive(Debug)]</code> above
+the <code>Expr</code> enum, we can print out an <code>Expr</code> e.g.
+<code>println!(&quot;{:?}&quot;, one_plus_one)</code>.</p>
+
+<h1 id="implementing-a-dsl">Implementing a DSL</h1>
+
+<p>It&rsquo;d be nice if we could write out calculations directly in our code. That&rsquo;s
+sounds like a good case for writing a macro, but let&rsquo;s try something simpler
+instead: making a DSL. The greatest inconvenience is probably the fact that we
+have to box each term in a sum or product. Let&rsquo;s write a few helper functions to
+automatically do the boxing for us. Implementation should be very
+straightforward:</p>
+
+<pre><code class="language-rust">impl Expr { // In this section, we'll just focus on sum and product
+    fn sum(lh: Expr, rh: Expr) -&gt; Expr {
+        Expr::Sum(Box::new(lh), Box::new(rh))
+    }
+
+    fn product(lh: Expr, rh: Expr) -&gt; Expr {
+        Expr::Product(Box::new(lh), Box::new(rh))
+    }
+}
+</code></pre>
+
+<p>Now, instead of writing <code>Expr::Sum(Box::new(...), Box::new(...))</code>, we could just
+write <code>Expr::product(Expr::Const(1), Expr::Const(2))</code>. This is already much
+better, but let&rsquo;s take it a step further: let&rsquo;s aim for something like
+<code>Expr::sum(1, Expr::product(1, 2))</code>. We don&rsquo;t want to just limit our parameters
+to <code>Expr</code>, but we also want to include <code>f64</code>. We can achieve that by using a
+type parameter with a trait bound on it:</p>
+
+<pre><code class="language-rust">fn sum&lt;L, R&gt;(lh: L, rh: R) -&gt; Expr where L: Into&lt;Expr&gt;, R: Into&lt;Expr&gt; {
+    Expr::Sum(Box::new(lh.into()), Box::new(rh.into()))
+}
+
+fn product&lt;L, R&gt;(lh: L, rh: R) -&gt; Expr where L: Into&lt;Expr&gt;, R: Into&lt;Expr&gt; {
+    Expr::Product(Box::new(lh.into()), Box::new(rh.into()))
+}
+</code></pre>
+
+<p>The <a href="https://doc.rust-lang.org/std/convert/trait.Into.html"><code>Into</code> trait</a>
+lets us use a type <code>T</code> as a parameter given that we implement an <code>into</code> function
+which converts from a <code>T</code> to the target type (which, in our case, is <code>Expr</code>). In
+the case of the above function, we&rsquo;ll use <code>L</code> and <code>R</code> instead of a single <code>T</code>,
+since the left and right hand parameters could have different types, like in
+<code>Expr::sum(1, Expr::sum(1, 2))</code>.</p>
+
+<p>Speaking of which, we can&rsquo;t write an expression using <code>f64</code> directly without
+implementing <code>Into&lt;Expr&gt;</code> for <code>f64</code>. However, it seems more natural to
+implement a <code>From&lt;f64&gt;</code> for <code>Expr</code> (<a href="https://doc.rust-lang.org/std/convert/trait.From.html#generic-impls">which provides an <code>Into</code> instance for free</a>) instead,
+since we want to convert <em>from</em> an <code>f64</code> to an <code>Expr</code>.</p>
+
+<pre><code class="language-rust">impl From&lt;f64&gt; for Expr {
+    fn from(x: f64) -&gt; Expr {
+        Expr::Const(x)
+    }
+}
+</code></pre>
+
+<p>We can now write out <code>sum</code> and <code>product</code> with a mix of <code>f64</code> and <code>Expr</code>. Let&rsquo;s
+rewrite <code>one_plus_one</code> and <code>one_plus_one_times_two</code> and add an even more
+complicated expression:</p>
+
+<pre><code class="language-rust">let one_plus_one = Expr::sum(1.0, Expr::Const(1.0));
+let one_plus_one_times_two = Expr::sum(1.0, Expr::product(1.0, 2.0));
+
+let complicated_expr =
+    Expr::sum(Expr::product(1.0, 2.0), Expr::product(3.0, 4.0));
+</code></pre>
+
+<h1 id="bonus-natural-looking-expressions">Bonus: Natural-looking Expressions</h1>
+
+<p>Going even further, we could make it possible to use the <code>+</code>, <code>-</code>, <code>*</code>, and <code>/</code>
+operators in our code. All we have to do is implement the <code>Add</code>, <code>Sub</code>, <code>Mul</code>,
+and <code>Div</code> traits, respectively, by specifying the resulting type (which, in our
+case, is <code>Expr</code>) and implementing a function corresponding to the operation. All
+we have to do is call the functions that we&rsquo;ve already written. The impl for
+<code>Add</code> is shown below; the others are similar.</p>
+
+<pre><code class="language-rust">use std::ops::{Add, Sub, Mul, Div};
+impl Add for Expr {
+    type Output = Expr;
+    fn add(self, other: Expr) -&gt; Expr {
+        Expr::sum(self, other)
+    }
+}
+</code></pre>
+
+<p>Now, we can simplify <code>complicated_expr</code> to</p>
+
+<pre><code class="language-rust">Expr::product(1.0, 2.0) + Expr::product(3.0, 4.0)
+</code></pre>
+
+<p>We can&rsquo;t just write <code>1.0 * 2.0 + 3.0 * 4.0</code>, since Rust will simply evaluate
+that to a <code>f64</code>. In any case, additional simplication won&rsquo;t really help
+readability, so let&rsquo;s stop here (we could always try to write a macro, though.
+Maybe next time).</p>
+
+<h1 id="what-s-next">What&rsquo;s Next</h1>
+
+<p>I&rsquo;ve shown how to compose an AST for a calculator in Rust. I didn&rsquo;t implement
+the DSL for <code>Quotient</code>, but it should be similar to implementing <code>Add</code> and
+<code>Product</code>. Of course, simply defining our data structure isn&rsquo;t very
+interesting&mdash;we want to be able to do something with it! In the next post in
+the series, I&rsquo;ll explore how to evaluate our expressions and turn the calculator
+into an <em>actual</em> calculator.</p>
+
+            </div>
+        </div>
+	</div>
+    <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+<div class="footer pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+    <div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="pure-menu pure-menu-horizontal footer-content">
+            <ul>
+                <li class="pure-menu-heading" id="foot-name">Technius:</li>
+
+                
+
+                
+                <li class="pure-menu-item">
+                    <a href="https://github.com/Technius" class="pure-menu-link">GitHub</a>
+                </li>
+                
+
+                
+
+                
+
+                
+
+            </ul>
+            <a href="#" class="pure-menu-heading pull-right" id="gototop-btn">↑↑</a>
+        </div>
+	  </div>
+      <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+
+<script src="https://technius.github.io/js/jquery.min.js" type="text/javascript"></script>
+<script src="https://technius.github.io/js/jquery.timeago.js" type="text/javascript"></script>
+<script type="text/javascript">
+  $(function(){
+    $("time.timeago").timeago();
+  })
+  $("#toggle-btn").click(function(){
+    $("#toggle-content").toggle();
+    if($(this).html() === "☰") {
+        $(this).html("X")
+    } else {
+        $(this).html("☰")
+    }
+  });
+  $(window).resize(function(){
+    if(window.innerWidth > 768) {
+      $(".desktop").removeAttr("style");
+    }
+  });
+</script>
+
+</body>
+</html>
+
