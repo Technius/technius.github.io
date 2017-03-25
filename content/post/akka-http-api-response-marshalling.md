@@ -1,21 +1,21 @@
 +++
-tags = ["scala", "akka-http"]
 title = "Improving Akka HTTP REST API Response Handling with Marshallers"
-date = "2017-03-23T23:11:38-07:00"
-draft = true
+date = "2017-03-24T23:54:00-07:00"
+tags = ["scala", "akka-http", "rest-api", "web"]
+categories = ["Scala"]
 +++
 
-I've been trying out [akka-http](http://doc.akka.io/docs/akka-http/current/scala/http/introduction.html)
-for a while now, and I found it to be great for making REST APIs. However, it is
-complicated to use and can lead to a massive amount of boilerplate if its
-features aren't taken advantage of completely. In this article, I'm going to
-to take a look at one feature of Akka HTTP that I explored recently: marshallers.
+I've been trying out [akka-http][akka_http] for a while now, and I found it to
+be great for making REST APIs. However, it is complicated to use and can lead to
+a massive amount of boilerplate if its features aren't taken advantage of
+completely. In this article, I'm going to to take a look at one feature of Akka
+HTTP that I explored recently: marshallers.
 
 ## Motivation
 
-To demonstrate how status codes are usually returned in Akka HTTP, let's consider
-a simple example of a REST API: an online notepad. Each note should have a title
-and content. The API should have basic CRUD endpoints:
+To demonstrate how status codes are usually returned in Akka HTTP, let's
+consider a simple example of a REST API: an online notepad. Each note should
+have a title and content. The API should have basic CRUD endpoints:
 
 * `GET /notes` retrieves all notes.
 * `POST /notes?title=Foo&content=bar` creates a new note titled "", storing
@@ -27,10 +27,13 @@ and content. The API should have basic CRUD endpoints:
 * `DELETE /notes/123` deletes the note with id 123, if it exists.
 
 Let's begin by modeling each note:
+
 ```scala
 case class Note(id: Int, title: String, content: String)
 ```
+
 Then, let's define an interface which will handle how the `Notes` are stored:
+
 ```scala
 trait NoteRepository {
   def list(): Future[Seq[Note]]
@@ -44,6 +47,7 @@ trait NoteRepository {
 Before we move on to writing the routes, let's write an intermediate layer that
 will help translate the results into a standard, easy-to-serialize format. In
 most cases, that format would be an algebraic data type:
+
 ```scala
 /* Represents the response to an API call */
 sealed trait ApiResult
@@ -90,10 +94,11 @@ trait NoteService {
 }
 ```
 
-Finally, we can define our routes. The most straightforward approach would be to
-call a serialization function wherever `ApiResult` is returned. For simplicity, I
+Finally, we can define our routes. The most straightforward approach is to call
+a serialization function wherever `ApiResult` is returned. For simplicity, I
 used the excellent [upickle](http://www.lihaoyi.com/upickle-pprint/upickle/)
 library to serialize each `ApiResult` as JSON.
+
 ```scala
 import akka.http.scaladsl.server._
 import akka.http.scaladsl.server.Directives._
@@ -137,11 +142,13 @@ trait Routes {
     }
 }
 ```
+
 To try it out, you'll need an implementation of `NoteRepository`. I've written a
-complete, naive example in this [gist](https://gist.github.com/Technius/4fddfc9e33b6c2fff13cbea5e4c67d53)
-(Warning: do _not_ use this code in production!). If we run a few queries on the
-server, we'll get the expected results:
-```
+complete, naive example in this [gist][impl_gist] (Warning: do _not_ use this
+code in production!). If we run a few queries on the server, we'll get the
+expected results:
+
+```shell
 $ curl 'http://localhost:1234/notes' -w '\n\n'
 {"$type":"example.ApiResult.ListNotes","notes":[]}
 
@@ -168,10 +175,10 @@ $ curl 'http://localhost:1234/notes' -w '\n\n'
 {"$type":"example.ApiResult.ListNotes","notes":[{"id":2,"title":"Post2","content":"Content"}]}
 ```
 
-If you took a close look, you'll notice multiple problems with the code:
+However, if you took a close look at the code, you'll notice multiple problems:
 
 * I didn't implement status codes because it wouldn't be very easy to. For
-  example, if I wanted to add status codes on the GET route, I'd have to pattern
+  example, if I wanted to add status codes on the `GET` route, I'd have to pattern
   match on the `ApiResult` inside of the `Future` and select the correct status
   code.
 * The content type isn't `application/json`. It's just plain text (test it in your
@@ -185,49 +192,51 @@ If you took a close look, you'll notice multiple problems with the code:
   that we can increase abstraction.
 * It involves far too much boilerplate for such a simple API.
 
-# Abstracting Serialization with Marshallers
+## Building marshallers
 
-A core part of Akka HTTP is its
-[marshalling API](http://doc.akka.io/docs/akka-http/current/scala/http/common/marshalling.html).
-Marshallers describe how data is transformed, such as when an incoming HTTP
-request is deserialized into, say, an int, or when an entity model is serialized
-into an HTTP response. They are automatically resolved through implicit scoping
-and help convert data returned in `complete` directives into HTTP responses.
-This is perfect for the above situation: a marshaller can be used not only
-ensure the proper status code and content type is returned, but it can also be
-used to handle serialization, and thus, remove boilerplate.
+A core part of Akka HTTP is its [marshalling API][marshaller_docs]. Marshallers
+describe how data is transformed, such as when an incoming HTTP request is
+deserialized into, say, an int, or when an entity model is serialized into an
+HTTP response. They are automatically resolved through implicit scoping and help
+convert data returned in `complete` directives into HTTP responses. This is
+perfect for the above situation: a marshaller can be used not only ensure the
+proper status code and content type is returned, but it can also be used to
+handle serialization, and thus, remove boilerplate.
 
-Since marshallers composabe, we can define our complete `ApiResult` marshaller
-with smaller ones that handle separate tasks. First, let's tackle the
-serialization part. If you read the documentation, you'll see that we'll need a
-`ToEntityMarshaller[ApiResult]`, and that one easy way to implement it would be
-to transform an existing marshaller. The `wrap` method on `Marshaller` provides
-a transformation function we could use:
+Let's take a look at the type signature of `Marshaller`:
 
 ```scala
-// Taken from the ScalaDoc
-def wrap[C, D >: B](newMediaType: MediaType)(f: (C) ⇒ A)(implicit mto: ContentTypeOverrider[D]): Marshaller[C, D]
+// From the ScalaDoc
+sealed abstract class Marshaller[-A, +B] extends AnyRef
 ```
 
-Based on the types, if `wrap` is called on a `Marshaller[A, B]` with a function
-that converts `A` to `C`, then the result is a `Marshaller[C, B]`. In other
-words, wrap transforms some other data type into the data type that the
-marshaller can process. Since we want to serialize `ApiResult`, the function
-given as a parameter should convert `ApiResult` into some type `B`. What should
-`B` be? Well, JSON is stored as a string, so we'll want a function `ApiResult =>
-String`. That's easy:
+A `Marshaller[A, B]` serializes `A` into `B`. The docs recommend composing new
+marshallers using existing ones, an approach we'll take to create a marshaller
+for `ApiResult`. `Marshaller` provides methods such as `map` and `compose`,
+which can transform the output or the input, respectively. We're going to focus
+on the `compose` method:
 
 ```scala
-(r: ApiResult) => write[ApiResult](r)
+// From the ScalaDoc
+// Given a Marshaller[A, B]:
+def compose[C](f: (C) ⇒ A): Marshaller[C, B] 
 ```
 
-Next, we need a content type, which will obviously be `application/json`.
-Actually, it's nice that `wrap` requires a `MediaType` parameter, since we won't
-have to specify it elsewhere.
+Based on the types, if `compose` is called on a `Marshaller[A, B]` with a
+function that converts `C` to `A`, then the result is a `Marshaller[C, B]`. In
+other words, `compose` creates a new marshaller that accepts `C`, transforms it
+to `A` with `f`, and then passes it to the original marshaller `m`, which then
+converts `A` to `B`.
 
-Now, we just need a `ToEntityMarshaller[String]`, which can be grabbed from Akka
-HTTP's predefined marshallers. Putting it altogether, we can now write a trait
-with our marshaller:
+We should be able to serialize an `ApiResult` with `compose`. If you read the
+documentation, you'll see that a `ToEntityMarshaller[A]`, which is a
+`Marshaller[A,MessageEntity]`, is used to generate the body of an HTTP request.
+That means that we want a call `compose` on some marshaller to get a
+`ToEntityMarshaller[ApiResult]`. In the earlier code, `ApiResult` was serialized
+into a `String` using `write[ApiResult]`. This gives us a clue: if we convert
+`ApiResult` into a `String` first, we'll have our marshaller. Conveniently, Akka
+HTTP provides `Marshaller.StringMarshaller`, so we'll just call the `compose`
+method on it:
 
 ```scala
 import akka.http.scaladsl.model._
@@ -240,19 +249,42 @@ trait ApiMarshalling {
    * Marshaller that serializes an ApiResult into JSON and ensures that it has
    * a content type of application/json
    */
-  def apiResponseTEM: ToEntityMarshaller[ApiResult] =
-    Marshaller.StringMarshaller.wrap(MediaTypes.`application/json`)(r => write[ApiResult](r))
+  def apiResultTEM: ToEntityMarshaller[ApiResult] =
+    Marshaller.StringMarshaller.compose(r => write[ApiResult](r))
+}
+```
+
+Though this marshaller works, we could improve it by also specifying the content
+typ, since the marshaller is used to create the message body. The `wrap` method,
+which is basically the same thing as `compose` with an additional content type
+parameter, allows us to do that:
+
+```scala
+// From the ScalaDoc
+// Given a Marshaller[A, B]:
+def wrap[C, D >: B](newMediaType: MediaType)(f: (C) ⇒ A)(implicit mto: ContentTypeOverrider[D]): Marshaller[C, D]
+```
+
+Using `wrap` instead of `compose` is a simple change away:
+
+```scala
+def apiResultTEM: ToEntityMarshaller[ApiResult] =
+  Marshaller.StringMarshaller.wrap(MediaTypes.`application/json`)(r => write[ApiResult](r))
 }
 ```
 
 We could make `apiResponseTEM` implicit, but we're not done yet: we still need
-to ensure the proper status code is returned. We can just pattern match on the
-specific type of `ApiResult`. In addition, since the compiler performs an
-exhaustivity check, we can be sure that all `ApiResult`s are handled.
+to ensure the proper status code is returned. To do so, we need to write a
+`ToResponseMarshaller[ApiResult]`, which is a
+`Marshaller[ApiResult,HttpResponse]`. The approach is the same: find an existing
+marshaller and use one of its composition methods. First, we need to figure out
+which status code should be returned given an `ApiResult`, so let's write a
+helper method.
 
 ```scala
 import ApiResult._
 def getResponseCode(result: ApiResult): StatusCode = result match {
+  case _: ListNotes => StatusCodes.OK
   case _: FoundNote => StatusCodes.OK
   case _: NoteNotFound => StatusCodes.NotFound
   case _: CreatedNote => StatusCodes.Created
@@ -264,14 +296,33 @@ def getResponseCode(result: ApiResult): StatusCode = result match {
 }
 ```
 
-TODO
+Then, we use another predefined marshaller to construct the
+`ToResponseMarshaller[ApiResult]` that will convert each `ApiResult` into a
+`Response`.
 
+```scala
+/*
+ * Marshaller that converts an ApiResult into an HttpResponse
+ */
+implicit def apiResultTRM: ToResponseMarshaller[ApiResult] =
+    Marshaller
+      .fromStatusCodeAndHeadersAndValue(apiResultTEM)
+      .compose(apiResult => (getResponseCode(apiResult), List.empty, apiResult))
 ```
-implicit def apiResponseTRM: ToResponseMarshaller[ApiResult] =
-  PredefinedToResponseMarshallers
-    .fromStatusCodeAndHeadersAndValue(apiResponseTEM)
-    .compose(apiResult => (getResponseCode(apiResult), List.empty, apiResult))
+
+The `Marshaller.fromStatusCodeAndHeadersAndValue` used above returns a
+marshaller that can construct an `HttpResponse`. The method has the following
+signature:
+
+```scala
+// From the ScalaDoc
+implicit def fromStatusCodeAndHeadersAndValue[T](implicit mt: ToEntityMarshaller[T]): TRM[(StatusCode, Seq[HttpHeader], T)] 
 ```
+
+`compose` is used to ensure that the status code is included in the
+response.
+
+## Putting it all together
 
 Finally, let's mix in the `ApiMarshalling` trait.
 
@@ -284,8 +335,6 @@ trait Routes extends ApiMarshalling {
       path(IntNumber) { id =>
         get {
           complete {
-            // Marshaller automatically serializes ApiResult AND chooses the
-            // correct status code!
             noteService.find(id)
           }
         }
@@ -296,7 +345,33 @@ trait Routes extends ApiMarshalling {
 }
 ```
 
-If you remembered, `find` returns a `Future[ApiResult]`. Akka HTTP has implicit
-functions to derive `ToResponseMarshaller[Future[A]]` from a
-`ToResponseMarshaller[A]`, so the use of `Marshaller`s gives us another
-advantage, especially since all of the `NoteService` functions return `Future`s.
+Notice the differnce between the original code and the code using the
+marshaller:
+
+* `ApiResult` is automatically serialized, so we don't have to call `write`
+  anymore. Plus, Akka HTTP has implicit functions to derive
+  `ToResponseMarshaller[Future[A]]` from a `ToResponseMarshaller[A]`, so we can
+  just leave each call as a `Future[ApiResult]`.
+* The status code is correctly included in the response.
+* The content type is `application/json`.
+* When a new `ApiResult` is added, the only status code or serialization logic
+  that needs to be implemented is a case in `getResponseCode`. In addition, the
+  compiler will even issue a warning as a reminder!
+
+## Conclusion
+
+While the example shown in this article is relatively simple, it's easy to see
+how marshallers can be used to reduce boilerplate and unify logic. They're also
+extensible: if you wanted to implement XML serialization, all you'd have to do
+is create a `ToEntityMarshaller[ApiResult]` for XML, refactor `apiResultTEM` to
+accept `apiResultTEM` as a parameter, and pass the XML marshaller to
+`apiResultTEM`. One marshaller that I found very useful to have, in particular,
+is a marshaller for a `Task` monad. It makes libraries such as `fs2` or `doobie`
+interop very well with Akka HTTP. Anyways, if you'd like to learn more about
+marshallers, check out the [documentation][marshaller_docs]. There are many more
+ways to use marshallers than I have presented in this article, such as streaming
+or chunking responses.
+
+[akka_http]: http://doc.akka.io/docs/akka-http/current/scala/http/introduction.html
+[marshaller_docs]: http://doc.akka.io/docs/akka-http/current/scala/http/common/marshalling.html
+[impl_gist]: https://gist.github.com/Technius/4fddfc9e33b6c2fff13cbea5e4c67d53
