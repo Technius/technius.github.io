@@ -1,10 +1,14 @@
 baseurl = "https://technius.github.io/"
 languageCode = "en-us"
-title = "Technius' Blog"
+title = "Bryan Tan's Blog"
 newContentEditor = "vim"
 theme = "nofancy"
 description = "Random thoughts and ideas"
+copyright = "Copyright (c) 2016-2017 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License."
+
+[params]
+highlight="monokai"
 
 [author]
-name = "Technius"
+name = "Bryan Tan"
 github = "Technius"
