@@ -1,0 +1,526 @@
+<html lang="en">
+<head>
+
+  
+  <meta charset="utf-8">
+  <title>Improving Akka HTTP REST API Response Handling with Marshallers</title>
+  <meta name="description" content="Improving Akka HTTP REST API Response Handling with Marshallers">
+  <meta name="author" content="Bryan Tan">
+
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="https://technius.github.io/css/fonts.css">
+  
+  
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.6.0/pure-min.css">
+  
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.6.0/grids-responsive-min.css">
+
+  <link rel="stylesheet" href="https://technius.github.io/css/custom.css">
+
+  
+  
+  <link rel="stylesheet" href="https://technius.github.io/highlight/styles/monokai.css">
+  
+  <script src="https://technius.github.io/highlight/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+<body>
+
+
+<div class="header pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+    <div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="desktop pure-menu pure-menu-horizontal nav-menu">
+            
+            <a href="https://technius.github.io/" class="site-title pure-menu-heading">Bryan Tan&#39;s Blog</a>
+            <ul class="pure-menu-list">
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/misc" class="pure-menu-link">Misc</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/scala" class="pure-menu-link">Scala</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/about/" class="pure-menu-link">About</a>
+                </li>
+            </ul>
+        </div>
+        <div class="mobile pure-menu nav-menu">
+            <a href="/" class="pure-menu-heading" id="toggle-home">Bryan Tan&#39;s Blog</a>
+            <a href="#" id="toggle-btn">&#9776;</a>
+            <ul class="pure-menu-list" id="toggle-content" style="display:none;">
+                
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/misc" class="pure-menu-link">Misc</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/scala" class="pure-menu-link">Scala</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/about" class="pure-menu-link">About</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+
+<div class="pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+	<div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="post">
+
+            <div class="post-title">
+                <p class="footnote">
+                    <time class="">2017-03-24</time>
+		            
+                    
+                    |
+                    
+                    
+                    tags:<a href="https://technius.github.io/tags/scala">scala</a> <a href="https://technius.github.io/tags/akka-http">akka-http</a> <a href="https://technius.github.io/tags/rest-api">rest-api</a> <a href="https://technius.github.io/tags/web">web</a> 
+                    
+
+                    
+                    categories:<a href="https://technius.github.io/categories/scala">Scala</a> 
+                    
+
+                    
+                </p>
+                <h1>Improving Akka HTTP REST API Response Handling with Marshallers</h1>
+            </div>
+
+            <div class="post-content">
+                
+
+<p>I&rsquo;ve been trying out <a href="http://doc.akka.io/docs/akka-http/current/scala/http/introduction.html">akka-http</a> for a while now, and I found it to
+be great for making REST APIs. However, it is complicated to use and can lead to
+a massive amount of boilerplate if its features aren&rsquo;t taken advantage of
+completely. In this article, I&rsquo;m going to to take a look at one feature of Akka
+HTTP that I explored recently: marshallers.</p>
+
+<h2 id="motivation">Motivation</h2>
+
+<p>To demonstrate how status codes are usually returned in Akka HTTP, let&rsquo;s
+consider a simple example of a REST API: an online notepad. Each note should
+have a title and content. The API should have basic CRUD endpoints:</p>
+
+<ul>
+<li><code>GET /notes</code> retrieves all notes.</li>
+<li><code>POST /notes?title=Foo&amp;content=bar</code> creates a new note titled &ldquo;&rdquo;, storing
+&ldquo;bar&rdquo; as its content. The status code is <code>201 Created</code>.</li>
+<li><code>GET /notes/123</code> retrieves the note with id 123, if it exists.</li>
+<li><code>POST /notes/123?title=Foo2&amp;content=bar2</code> updates the note with id 123, if
+it exists. If neither title nor content are supplied, return
+<code>304 Not Modified</code>.</li>
+<li><code>DELETE /notes/123</code> deletes the note with id 123, if it exists.</li>
+</ul>
+
+<p>Let&rsquo;s begin by modeling each note:</p>
+
+<pre><code class="language-scala">case class Note(id: Int, title: String, content: String)
+</code></pre>
+
+<p>Then, let&rsquo;s define an interface which will handle how the <code>Notes</code> are stored:</p>
+
+<pre><code class="language-scala">trait NoteRepository {
+  def list(): Future[Seq[Note]]
+  def find(id: Int): Future[Option[Note]]
+  def create(title: String, content: String): Future[Note]
+  def update(id: Int, title: Option[String], content: Option[String]): Future[Option[Note]]
+  def delete(id: Int): Future[Option[Note]]
+}
+</code></pre>
+
+<p>Before we move on to writing the routes, let&rsquo;s write an intermediate layer that
+will help translate the results into a standard, easy-to-serialize format. In
+most cases, that format would be an algebraic data type:</p>
+
+<pre><code class="language-scala">/* Represents the response to an API call */
+sealed trait ApiResult
+object ApiResult {
+  /* Returns notes found */
+  case class FoundNote(note: Note) extends ApiResult
+  
+  /* Indicates when a specified note cannot be found */
+  case class NoteNotFound(id: Int) extends ApiResult
+  
+  /* Indicates when a note is successfully created */
+  case class CreatedNote(note: Note) extends ApiResult
+ 
+  /* Indicates when a note is successfully updated */
+  case class UpdatedNote(updatedNote: Note) extends ApiResult
+ 
+  /* Indicates when a note is sucessfully deleted. */
+  case class DeletedNote(deletedNote: Note) extends ApiResult
+}
+
+trait NoteService {
+  import ApiResult._
+
+  def repo: NoteRepository
+
+  def find(id: Int): Future[ApiResult] =
+    repo.find(id).map(noteOp(id)(FoundNote.apply _))
+
+  def create(title: String, content: String): Future[ApiResult] =
+    repo.create(title, content).map(CreatedNote.apply _)
+
+  def update(id: Int, title: Option[String], content: Option[String]): Future[ApiResult] =
+    repo.update(id, title, content).map(noteOp(id)(UpdatedNote.apply _))
+
+  def delete(id: Int): Future[ApiResult] =
+    repo.delete(id).map(noteOp(id)(DeletedNote.apply _))
+
+  /*
+   * Helper for returning NoteNotFound if an Option is None, or passing the
+   * found note to f otherwise.
+   */
+  private def noteOp[T](id: Int)(f: Note =&gt; ApiResult): Option[Note] =&gt; ApiResult =
+    opt =&gt; opt.map(f).getOrElse(NoteNotFound(id))
+}
+</code></pre>
+
+<p>Finally, we can define our routes. The most straightforward approach is to call
+a serialization function wherever <code>ApiResult</code> is returned. For simplicity, I
+used the excellent <a href="http://www.lihaoyi.com/upickle-pprint/upickle/">upickle</a>
+library to serialize each <code>ApiResult</code> as JSON.</p>
+
+<pre><code class="language-scala">import akka.http.scaladsl.server._
+import akka.http.scaladsl.server.Directives._
+import upickle.default._
+trait Routes {
+  def noteService: NoteService
+  
+  val notesRoute =
+    pathPrefix(&quot;notes&quot;) {
+      // -&gt; /notes/id
+      (path(IntNumber)) { id =&gt;
+        get {
+          complete {
+            noteService.find(id).map(write(_))
+          }
+        } ~
+        delete {
+          complete {
+            noteService.delete(id).map(write(_))
+          }
+        } ~
+        (post &amp; parameters('title.?, 'content.?)) { (title, content) =&gt;
+          complete {
+            noteService.update(id, title, content).map(write(_))
+          }
+        }
+      } ~
+      // -&gt; /notes
+      pathEndOrSingleSlash {
+        get {
+          complete {
+            noteService.list.map(write(_))
+          }
+        } ~
+        (post &amp; parameters('title, 'content)) { (title, content) =&gt;
+          complete {
+            noteService.create(title, content).map(write(_))
+          }
+        }
+      }
+    }
+}
+</code></pre>
+
+<p>To try it out, you&rsquo;ll need an implementation of <code>NoteRepository</code>. I&rsquo;ve written a
+complete, naive example in this <a href="https://gist.github.com/Technius/4fddfc9e33b6c2fff13cbea5e4c67d53">gist</a> (Warning: do <em>not</em> use this
+code in production!). If we run a few queries on the server, we&rsquo;ll get the
+expected results:</p>
+
+<pre><code class="language-shell">$ curl 'http://localhost:1234/notes' -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.ListNotes&quot;,&quot;notes&quot;:[]}
+
+$ curl 'http://localhost:1234/notes?title=test&amp;content=Hi' -XPOST -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.CreatedNote&quot;,&quot;note&quot;:{&quot;id&quot;:1,&quot;title&quot;:&quot;test&quot;,&quot;content&quot;:&quot;Hi&quot;}}
+
+$ curl 'http://localhost:1234/notes/1' -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.FoundNote&quot;,&quot;note&quot;:{&quot;id&quot;:1,&quot;title&quot;:&quot;test&quot;,&quot;content&quot;:&quot;Hi&quot;}}
+
+$ curl 'http://localhost:1234/notes/1?title=Test&amp;content=Hello' -XPOST -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.UpdatedNote&quot;,&quot;updatedNote&quot;:{&quot;id&quot;:1,&quot;title&quot;:&quot;Test&quot;,&quot;content&quot;:&quot;Hello&quot;}}
+
+$ curl 'http://localhost:1234/notes?title=Post2&amp;content=Content' -XPOST -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.CreatedNote&quot;,&quot;note&quot;:{&quot;id&quot;:2,&quot;title&quot;:&quot;Post2&quot;,&quot;content&quot;:&quot;Content&quot;}}
+
+$ curl 'http://localhost:1234/notes' -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.ListNotes&quot;,&quot;notes&quot;:[{&quot;id&quot;:1,&quot;title&quot;:&quot;Test&quot;,&quot;content&quot;:&quot;Hello&quot;},{&quot;id&quot;:2,&quot;title
+&quot;:&quot;Post2&quot;,&quot;content&quot;:&quot;Content&quot;}]}
+
+$ curl 'http://localhost:1234/notes/1' -XDELETE -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.DeletedNote&quot;,&quot;deletedNote&quot;:{&quot;id&quot;:1,&quot;title&quot;:&quot;Test&quot;,&quot;content&quot;:&quot;Hello&quot;}}
+
+$ curl 'http://localhost:1234/notes' -w '\n\n'
+{&quot;$type&quot;:&quot;example.ApiResult.ListNotes&quot;,&quot;notes&quot;:[{&quot;id&quot;:2,&quot;title&quot;:&quot;Post2&quot;,&quot;content&quot;:&quot;Content&quot;}]}
+</code></pre>
+
+<p>However, if you took a close look at the code, you&rsquo;ll notice multiple problems:</p>
+
+<ul>
+<li>I didn&rsquo;t implement status codes because it wouldn&rsquo;t be very easy to. For
+example, if I wanted to add status codes on the <code>GET</code> route, I&rsquo;d have to pattern
+match on the <code>ApiResult</code> inside of the <code>Future</code> and select the correct status
+code.</li>
+<li>The content type isn&rsquo;t <code>application/json</code>. It&rsquo;s just plain text (test it in your
+browser!</li>
+<li>It&rsquo;s tedious and boring to extend. For example, if I wanted to add status codes
+for all routes, I&rsquo;d have to pattern match in each route!</li>
+<li>It will be easy to introduce bugs: during a refactor, someone could
+accidentally cause a <code>Created</code> status code to be returned along with an
+<code>ApiResult.DeletedNote</code>!</li>
+<li>We have to call <code>write</code> on each route. This code duplication is a clear sign
+that we can increase abstraction.</li>
+<li>It involves far too much boilerplate for such a simple API.</li>
+</ul>
+
+<h2 id="building-marshallers">Building marshallers</h2>
+
+<p>A core part of Akka HTTP is its <a href="http://doc.akka.io/docs/akka-http/current/scala/http/common/marshalling.html">marshalling API</a>. Marshallers
+describe how data is transformed, such as when an incoming HTTP request is
+deserialized into, say, an int, or when an entity model is serialized into an
+HTTP response. They are automatically resolved through implicit scoping and help
+convert data returned in <code>complete</code> directives into HTTP responses. This is
+perfect for the above situation: a marshaller can be used not only ensure the
+proper status code and content type is returned, but it can also be used to
+handle serialization, and thus, remove boilerplate.</p>
+
+<p>Let&rsquo;s take a look at the type signature of <code>Marshaller</code>:</p>
+
+<pre><code class="language-scala">// From the ScalaDoc
+sealed abstract class Marshaller[-A, +B] extends AnyRef
+</code></pre>
+
+<p>A <code>Marshaller[A, B]</code> serializes <code>A</code> into <code>B</code>. The docs recommend composing new
+marshallers using existing ones, an approach we&rsquo;ll take to create a marshaller
+for <code>ApiResult</code>. <code>Marshaller</code> provides methods such as <code>map</code> and <code>compose</code>,
+which can transform the output or the input, respectively. We&rsquo;re going to focus
+on the <code>compose</code> method:</p>
+
+<pre><code class="language-scala">// From the ScalaDoc
+// Given a Marshaller[A, B]:
+def compose[C](f: (C) ⇒ A): Marshaller[C, B] 
+</code></pre>
+
+<p>Based on the types, if <code>compose</code> is called on a <code>Marshaller[A, B]</code> with a
+function that converts <code>C</code> to <code>A</code>, then the result is a <code>Marshaller[C, B]</code>. In
+other words, <code>compose</code> creates a new marshaller that accepts <code>C</code>, transforms it
+to <code>A</code> with <code>f</code>, and then passes it to the original marshaller <code>m</code>, which then
+converts <code>A</code> to <code>B</code>.</p>
+
+<p>We should be able to serialize an <code>ApiResult</code> with <code>compose</code>. If you read the
+documentation, you&rsquo;ll see that a <code>ToEntityMarshaller[A]</code>, which is a
+<code>Marshaller[A,MessageEntity]</code>, is used to generate the body of an HTTP request.
+That means that we want a call <code>compose</code> on some marshaller to get a
+<code>ToEntityMarshaller[ApiResult]</code>. In the earlier code, <code>ApiResult</code> was serialized
+into a <code>String</code> using <code>write[ApiResult]</code>. This gives us a clue: if we convert
+<code>ApiResult</code> into a <code>String</code> first, we&rsquo;ll have our marshaller. Conveniently, Akka
+HTTP provides <code>Marshaller.StringMarshaller</code>, so we&rsquo;ll just call the <code>compose</code>
+method on it:</p>
+
+<pre><code class="language-scala">import akka.http.scaladsl.model._
+import akka.http.scaladsl.marshalling._
+/**
+  * Mix in to provide marshalling capabilities for `ApiResult`.
+  */
+trait ApiMarshalling {
+  /* 
+   * Marshaller that serializes an ApiResult into JSON and ensures that it has
+   * a content type of application/json
+   */
+  def apiResultTEM: ToEntityMarshaller[ApiResult] =
+    Marshaller.StringMarshaller.compose(r =&gt; write[ApiResult](r))
+}
+</code></pre>
+
+<p>Though this marshaller works, we could improve it by also specifying the content
+typ, since the marshaller is used to create the message body. The <code>wrap</code> method,
+which is basically the same thing as <code>compose</code> with an additional content type
+parameter, allows us to do that:</p>
+
+<pre><code class="language-scala">// From the ScalaDoc
+// Given a Marshaller[A, B]:
+def wrap[C, D &gt;: B](newMediaType: MediaType)(f: (C) ⇒ A)(implicit mto: ContentTypeOverrider[D]): Marshaller[C, D]
+</code></pre>
+
+<p>Using <code>wrap</code> instead of <code>compose</code> is a simple change away:</p>
+
+<pre><code class="language-scala">def apiResultTEM: ToEntityMarshaller[ApiResult] =
+  Marshaller.StringMarshaller.wrap(MediaTypes.`application/json`)(r =&gt; write[ApiResult](r))
+}
+</code></pre>
+
+<p>We could make <code>apiResponseTEM</code> implicit, but we&rsquo;re not done yet: we still need
+to ensure the proper status code is returned. To do so, we need to write a
+<code>ToResponseMarshaller[ApiResult]</code>, which is a
+<code>Marshaller[ApiResult,HttpResponse]</code>. The approach is the same: find an existing
+marshaller and use one of its composition methods. First, we need to figure out
+which status code should be returned given an <code>ApiResult</code>, so let&rsquo;s write a
+helper method.</p>
+
+<pre><code class="language-scala">import ApiResult._
+def getResponseCode(result: ApiResult): StatusCode = result match {
+  case _: ListNotes =&gt; StatusCodes.OK
+  case _: FoundNote =&gt; StatusCodes.OK
+  case _: NoteNotFound =&gt; StatusCodes.NotFound
+  case _: CreatedNote =&gt; StatusCodes.Created
+  // To return a 304 Not Modified, UpdatedNote and the associated logic needs to
+  // be changed so that it can capture the possibility that no changes were made.
+  // Try it as an exercise!
+  case _: UpdatedNote =&gt; StatusCodes.OK
+  case _: DeletedNote =&gt; StatusCodes.OK
+}
+</code></pre>
+
+<p>Then, we use another predefined marshaller to construct the
+<code>ToResponseMarshaller[ApiResult]</code> that will convert each <code>ApiResult</code> into a
+<code>Response</code>.</p>
+
+<pre><code class="language-scala">/*
+ * Marshaller that converts an ApiResult into an HttpResponse
+ */
+implicit def apiResultTRM: ToResponseMarshaller[ApiResult] =
+    Marshaller
+      .fromStatusCodeAndHeadersAndValue(apiResultTEM)
+      .compose(apiResult =&gt; (getResponseCode(apiResult), List.empty, apiResult))
+</code></pre>
+
+<p>The <code>Marshaller.fromStatusCodeAndHeadersAndValue</code> used above returns a
+marshaller that can construct an <code>HttpResponse</code>. The method has the following
+signature:</p>
+
+<pre><code class="language-scala">// From the ScalaDoc
+implicit def fromStatusCodeAndHeadersAndValue[T](implicit mt: ToEntityMarshaller[T]): TRM[(StatusCode, Seq[HttpHeader], T)] 
+</code></pre>
+
+<p><code>compose</code> is used to ensure that the status code is included in the
+response.</p>
+
+<h2 id="putting-it-all-together">Putting it all together</h2>
+
+<p>Finally, let&rsquo;s mix in the <code>ApiMarshalling</code> trait.</p>
+
+<pre><code class="language-scala">trait Routes extends ApiMarshalling {
+  def noteService: NoteService
+  
+  val notesRoute =
+    pathPrefix(&quot;notes&quot;) {
+      path(IntNumber) { id =&gt;
+        get {
+          complete {
+            noteService.find(id)
+          }
+        }
+        // ...
+      }
+    }
+    // Rest omitted because it's mostly the same
+}
+</code></pre>
+
+<p>Notice the differnce between the original code and the code using the
+marshaller:</p>
+
+<ul>
+<li><code>ApiResult</code> is automatically serialized, so we don&rsquo;t have to call <code>write</code>
+anymore. Plus, Akka HTTP has implicit functions to derive
+<code>ToResponseMarshaller[Future[A]]</code> from a <code>ToResponseMarshaller[A]</code>, so we can
+just leave each call as a <code>Future[ApiResult]</code>.</li>
+<li>The status code is correctly included in the response.</li>
+<li>The content type is <code>application/json</code>.</li>
+<li>When a new <code>ApiResult</code> is added, the only status code or serialization logic
+that needs to be implemented is a case in <code>getResponseCode</code>. In addition, the
+compiler will even issue a warning as a reminder!</li>
+</ul>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>While the example shown in this article is relatively simple, it&rsquo;s easy to see
+how marshallers can be used to reduce boilerplate and unify logic. They&rsquo;re also
+extensible: if you wanted to implement XML serialization, all you&rsquo;d have to do
+is create a <code>ToEntityMarshaller[ApiResult]</code> for XML, refactor <code>apiResultTEM</code> to
+accept <code>apiResultTEM</code> as a parameter, and pass the XML marshaller to
+<code>apiResultTEM</code>. One marshaller that I found very useful to have, in particular,
+is a marshaller for a <code>Task</code> monad. It makes libraries such as <code>fs2</code> or <code>doobie</code>
+interop very well with Akka HTTP. Anyways, if you&rsquo;d like to learn more about
+marshallers, check out the <a href="http://doc.akka.io/docs/akka-http/current/scala/http/common/marshalling.html">documentation</a>. There are many more
+ways to use marshallers than I have presented in this article, such as streaming
+or chunking responses.</p>
+
+            </div>
+        </div>
+	</div>
+    <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+<div class="footer pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+    <div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="pure-menu pure-menu-horizontal footer-content">
+            <ul>
+                <li class="pure-menu-heading" id="foot-name">Bryan Tan:</li>
+
+                
+
+                
+                <li class="pure-menu-item">
+                    <a href="https://github.com/Technius" class="pure-menu-link">GitHub</a>
+                </li>
+                
+
+                
+
+                
+
+                
+
+            </ul>
+            <a href="#" class="pure-menu-heading pull-right" id="gototop-btn">↑↑</a>
+        </div>
+	  </div>
+      <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+
+<script src="https://technius.github.io/js/jquery.min.js" type="text/javascript"></script>
+<script src="https://technius.github.io/js/jquery.timeago.js" type="text/javascript"></script>
+<script type="text/javascript">
+  $(function(){
+    $("time.timeago").timeago();
+  })
+  $("#toggle-btn").click(function(){
+    $("#toggle-content").toggle();
+    if($(this).html() === "☰") {
+        $(this).html("X")
+    } else {
+        $(this).html("☰")
+    }
+  });
+  $(window).resize(function(){
+    if(window.innerWidth > 768) {
+      $(".desktop").removeAttr("style");
+    }
+  });
+</script>
+
+</body>
+</html>
+
