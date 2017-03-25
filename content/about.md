@@ -1,6 +1,6 @@
 +++
 categories = ["misc"]
-lastmod = "2016-3-24"
+lastmod = "2016-03-24"
 date = "2016-12-17"
 title = "About This Blog"
 slug = "about"
