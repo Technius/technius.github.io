@@ -1,0 +1,383 @@
+<html lang="en">
+<head>
+
+  
+  <meta charset="utf-8">
+  <title>Cleaner Error Handling in Scala with Cats EitherT</title>
+  <meta name="description" content="Cleaner Error Handling in Scala with Cats EitherT">
+  <meta name="author" content="Bryan Tan">
+
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="https://technius.github.io/css/fonts.css">
+  
+  
+  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.6.0/pure-min.css">
+  
+
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/pure/0.6.0/grids-responsive-min.css">
+
+  <link rel="stylesheet" href="https://technius.github.io/css/custom.css">
+
+  
+  
+  <link rel="stylesheet" href="https://technius.github.io/highlight/styles/monokai.css">
+  
+  <script src="https://technius.github.io/highlight/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+
+</head>
+<body>
+
+
+<div class="header pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+    <div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="desktop pure-menu pure-menu-horizontal nav-menu">
+            
+            <a href="https://technius.github.io/" class="site-title pure-menu-heading">Bryan Tan&#39;s Blog</a>
+            <ul class="pure-menu-list">
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/misc" class="pure-menu-link">Misc</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/scala" class="pure-menu-link">Scala</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/about/" class="pure-menu-link">About</a>
+                </li>
+            </ul>
+        </div>
+        <div class="mobile pure-menu nav-menu">
+            <a href="/" class="pure-menu-heading" id="toggle-home">Bryan Tan&#39;s Blog</a>
+            <a href="#" id="toggle-btn">&#9776;</a>
+            <ul class="pure-menu-list" id="toggle-content" style="display:none;">
+                
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/misc" class="pure-menu-link">Misc</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/categories/scala" class="pure-menu-link">Scala</a>
+                </li>
+                
+                <li class="pure-menu-item">
+                    <a href="https://technius.github.io/about" class="pure-menu-link">About</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+
+<div class="pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+	<div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="post">
+
+            <div class="post-title">
+                <p class="footnote">
+                    <time class="">2017-05-09</time>
+		            
+                    
+                    |
+                    
+                    
+                    tags:<a href="https://technius.github.io/tags/scala">scala</a> 
+                    
+
+                    
+                    categories:<a href="https://technius.github.io/categories/scala">Scala</a> 
+                    
+
+                    
+                </p>
+                <h1>Cleaner Error Handling in Scala with Cats EitherT</h1>
+            </div>
+
+            <div class="post-content">
+                
+
+<h1 id="introduction">Introduction</h1>
+
+<p>In Scala, it&rsquo;s a common practice to handle errors or perform validation using
+<code>Option</code> or <code>Either</code>. For example, a form on a website may be validated on a
+server by using a series of <code>Either</code>s, which will return the valid model data or
+a message explaining the problems in the form submission. However, adding
+more complicated concerns into the <code>Either</code> sequence, such as <code>Option</code>s or
+<code>Future</code>s, requires a lot of boilerplate.</p>
+
+<p>To see how this might happen, let&rsquo;s consider a simple example, account
+registration. In our case, an account consists of a username, a password and an
+email address.</p>
+
+<pre><code class="language-scala">case class Account(username: String, password: String, email: String)
+</code></pre>
+
+<p>To register for an account, a new user has to provide all three of these fields,
+which usually follow a set of restrictions. For example, most websites require
+passwords to have a minimum length, and some websites don&rsquo;t allow usernames to
+have spaces. The user registration form might be validated like this:</p>
+
+<pre><code class="language-scala">// Note: This example requires Scala 2.12, which allows Either to be used
+// in for comprehensions
+
+import scala.util.{ Either, Left, Right }
+
+type ErrorOr[A] = Either[String, A]
+
+def validateUsername(username: String): ErrorOr[String] = ???
+def validatePassword(password: String): ErrorOr[String] = ???
+def validateEmail(email: String): ErrorOr[String] = ???
+
+def validateAccount(usernameInput: String, passwordInput: String, emailInput: String): ErrorOr[Account] =
+  for {
+    username &lt;- validateUsername(usernameInput)
+    password &lt;- validatePassword(passwordInput)
+    email &lt;- validateEmail(emailInput)
+  } yield Account(usernameInput, passwordInput, email)
+</code></pre>
+
+<p>This looks clean, but creating the actual account isn&rsquo;t. For example, user
+registration might involve checking for existing accounts, saving the account a
+database, and sending a welcome email. In addition, the aforementioned actions
+may need to occur asynchronously, which means that we have to handle <code>Future</code>s,
+as well.</p>
+
+<pre><code class="language-scala">def findAccountWithEmail(email: String): Future[Option[Account]] = ???
+def sendWelcomeEmail(email: String): Future[Unit] = ???
+def insertAccountIntoDatabase(newAccount: Account): Future[Account] = ???
+
+def registerAccount(usernameInput: String, passwordInput: String, emailInput: String): Future[ErrorOr[Account]] = {
+  validateAccount(usernameInput, passwordInput, emailInput).fold(
+    error =&gt; Future.successful(Left(error)),
+    validAccount =&gt; findAccountWithEmail(emailInput) flatMap {
+      case Some(_) =&gt;
+        val errorMessage = &quot;Account with this email already exists!&quot;
+        Future.successful(Left(errorMessage))
+      case None =&gt;
+        for {
+          _ &lt;- insertAccountIntoDatabase(validAccount)
+          _ &lt;- sendWelcomeEmail(validAccount.email)
+        } yield Right(validAccount)
+    }
+  )
+}
+</code></pre>
+
+<p>There&rsquo;s a lot of noise that distracts from how the process works. Also, it&rsquo;s a
+pain to write the boilerplate, especially since form validation is quite common.</p>
+
+<p>The problem is that the steps don&rsquo;t compose very well. It would be far nicer if
+we could just write a single for-comprehension that deals strictly with <code>Either</code>
+and let some other underlying mechanism handle the <code>Future</code> boilerplate. For
+example, a clean hypothetical example of a <code>registerAccount</code> function would be</p>
+
+<pre><code class="language-scala">def registerAccount(usernameInput: String, passwordInput: String, emailInput: String): Future[ErrorOr[Account]] =
+  for {
+    validAccount &lt;- validateAccount(usernameInput, passwordInput, emailInput)
+    accountOpt &lt;- findAccount(validAccount.email) if accountOpt.isEmpty
+    _ &lt;- insertAccountIntoDatabase(validAccount)
+    _ &lt;- sendWelcomeEmail(validAccount.email)
+  } yield validAccount
+</code></pre>
+
+<h1 id="abstracting-away-either-handling">Abstracting Away Either Handling</h1>
+
+<p>We can get pretty close to that hypothetical example by using the <code>EitherT</code>
+monad transformer. It&rsquo;s not necessary to know what a &ldquo;monad transformer&rdquo; is,
+only that <code>EitherT</code> is a wrapper for some effectful type (e.g. <code>Option</code> or
+<code>Future</code>) that can abstract away the effect and handle the contents of the type
+in a more convenient manner. I&rsquo;m going to use the <code>EitherT</code> from cats, but the
+<code>EitherT</code> from scalaz should also work (albeit with different function names).</p>
+
+<p>Using <code>EitherT</code> is pretty straightforward: wrap your desired data in <code>EitherT</code>,
+compose the <code>EitherT</code> values using a for-comprehension, and then extract the
+final wrapped <code>F[Either[B, A]]</code> using the <code>value</code> method, where <code>F</code> is the
+effectful type, <code>B</code> is the error type, and <code>A</code> is the type of the valid data.
+Here&rsquo;s an example using <code>Future</code>:</p>
+
+<pre><code class="language-scala">type Result[A] = EitherT[Future, String, A] // wraps a Future[Either[String, A]]
+
+val numberET: Result[Int] = EitherT.pure(5) // pure has type A  =&gt; EitherT[F, B, A]
+val numberOpt = Some(10)
+
+val finalEitherT = for {
+  n &lt;- numberET
+  // fromOption transforms an Option into an Right if it exists, or a Left with
+  // erroraneous value otherwise.
+  numberOpt &lt;- EitherT.fromOption(numberOpt, &quot;Number not defined&quot;)
+} yield (n + numberOpt)
+
+val myFuture: Future[Either[String, Int]] = finalEitherT.value // convert EitherT to Future
+
+val lifted: Result[Int] = EitherT.fromEither(Right(5)) // convert Either to EitherT
+</code></pre>
+
+<p>Failures work as expected, conforming to the short-circuiting nature of <code>Either</code>:</p>
+
+<pre><code class="language-scala">val successful: Result[Int] = EitherT.pure(5)
+val fail: Result[Int] = EitherT.fromEither(Left(&quot;Nope&quot;))
+val neverReached: Result[Int] = EitherT.pure(5)
+
+val myEitherT: Result[Int] = for {
+  a &lt;- successful
+  b &lt;- fail
+  c &lt;- neverReached
+} yield c
+
+println(myEitherT.value) // Nope
+</code></pre>
+
+<p>Try out the <code>EitherT</code> functions with different values and combinations, and see
+what you get!</p>
+
+<p>There&rsquo;s also a convenient function called <code>cond</code>, which is similar to an
+if-statement for <code>EitherT</code>.</p>
+
+<pre><code class="language-scala">def asyncDivide(n: Int, divisor: Int): Result[Int] =
+  EitherT.cond(divisor != 0, n / divisor, &quot;Cannot divide by zero&quot;)
+
+asyncDivide(5, 0) // Cannot divide by zero
+asyncDivide(10, 2) // Successful
+</code></pre>
+
+<h1 id="reimplementing-registeraccount">Reimplementing <code>registerAccount</code></h1>
+
+<p>Now that we&rsquo;re armed with <code>EitherT</code>, let&rsquo;s reimplement <code>registerAccount</code> in a
+more elegant way. The goal is to make the logic more explicit by ordering each
+step sequentially. First, let&rsquo;s bring back the handy <code>Result</code> alias:</p>
+
+<pre><code class="language-scala">type Result[A] = EitherT[Future, String, A]
+</code></pre>
+
+<p>Next, let&rsquo;s refactor the <code>validateAccount</code> logic. Since <code>Either</code> is already
+returned for each step, all we have to do is lift each <code>Either</code> with
+<code>EitherT.fromEither</code>.</p>
+
+<pre><code class="language-scala">def validateAccount(usernameInput: String, passwordInput: String, emailInput: String): Result[Account] =
+  for {
+    username &lt;- EitherT.fromEither(validateUsername(usernameInput))
+    password &lt;- EitherT.fromEither(validatePassword(passwordInput))
+    email &lt;- EitherT.fromEither(validateEmail(emailInput))
+  } yield Account(usernameInput, passwordInput, email)
+</code></pre>
+
+<p>The problematic part is testing for the existing account, since it causes the
+logic to branch off:</p>
+
+<pre><code class="language-scala">def findAccountWithEmail(email: String): Future[Option[Account]] = ???
+</code></pre>
+
+<p>If the account can&rsquo;t be found, it should return an error message and stop the
+registration immediately. Otherwise, it should continue with registration.</p>
+
+<pre><code class="language-scala">def testForExistingAccount(email: String): Result[Unit] =
+    EitherT(findAccountWithEmail(email) map {
+      case Some(_) =&gt; Left(&quot;An account with this email already exists&quot;)
+      case None =&gt; Right(())
+    })
+</code></pre>
+
+<p>Now, all that remains is to compose the steps in the <code>registerAccount</code> function.
+This should be trivial, since the types that we&rsquo;re dealing with are <code>Future</code>,
+<code>Either</code>, and <code>EitherT</code>, which can all be combined into <code>EitherT</code> in a single
+for-comprehension.</p>
+
+<pre><code class="language-scala">def registerAccount(usernameInput: String, passwordInput: String, emailInput: String): Future[ErrorOr[Account]] = {
+  val eitherT: Result[Account] = for {
+    newAccount &lt;- validateAccount(usernameInput, passwordInput, emailInput)
+    _ &lt;- testForExistingAccount(emailInput)
+    _ &lt;- EitherT(insertAccountIntoDatabase(newAccount))
+    _ &lt;- EitherT(sendWelcomeEmail(newAccount.email))
+  } yield newAccount
+
+  eitherT.value
+}
+</code></pre>
+
+<p>This is pretty close to the ideal code, and it&rsquo;s very easy to understand!</p>
+
+<h1 id="conclusion">Conclusion</h1>
+
+<p>I&rsquo;ve shown that using <code>EitherT</code> can make error handling far more readable. Like
+I briefly mentioned above, <code>EitherT</code> works for effectful types such as
+<code>Option[Either[String, Int]]</code> or <code>IO[Either[String, Int]]</code>. Since these types
+are so generally, it&rsquo;s easy to see that <code>EitherT</code> has a large variety of use
+cases, especially for short-circuiting steps.</p>
+
+<p>Sometimes, it might be desirable to use <code>EitherT</code> in situations involving
+parallel validation (e.g. validate all fields at the same time and return a list
+of all errors). In that case, with some effort, <code>Validated</code> (or <code>Validation</code>)
+can be used with <code>EitherT</code> to add parallel validation. Use <code>Either</code> for
+sequential validation and <code>Validated</code> for parallel validation for the best
+effects! See the <a href="http://typelevel.org/cats/datatypes/either.html"><code>Either</code></a>
+and <a href="http://typelevel.org/cats/datatypes/validated.html"><code>Validation</code></a> documentation for more information.</p>
+
+            </div>
+        </div>
+	</div>
+    <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+<div class="footer pure-g">
+    <div class="pure-u-1-24 pure-u-md-5-24"></div>
+    <div class="pure-u-11-12 pure-u-md-5-8">
+        <div class="pure-menu pure-menu-horizontal footer-content">
+            <ul>
+                <li class="pure-menu-heading" id="foot-name">Bryan Tan:</li>
+
+                
+
+                
+                <li class="pure-menu-item">
+                    <a href="https://github.com/Technius" class="pure-menu-link">GitHub</a>
+                </li>
+                
+
+                
+
+                
+
+                
+
+            </ul>
+            <a href="#" class="pure-menu-heading pull-right" id="gototop-btn">↑↑</a>
+        </div>
+	  </div>
+      <div class="pure-u-1-24 pure-u-md-1-6"></div>
+</div>
+
+
+<script src="https://technius.github.io/js/jquery.min.js" type="text/javascript"></script>
+<script src="https://technius.github.io/js/jquery.timeago.js" type="text/javascript"></script>
+<script type="text/javascript">
+  $(function(){
+    $("time.timeago").timeago();
+  })
+  $("#toggle-btn").click(function(){
+    $("#toggle-content").toggle();
+    if($(this).html() === "☰") {
+        $(this).html("X")
+    } else {
+        $(this).html("☰")
+    }
+  });
+  $(window).resize(function(){
+    if(window.innerWidth > 768) {
+      $(".desktop").removeAttr("style");
+    }
+  });
+</script>
+
+</body>
+</html>
+

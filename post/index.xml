@@ -7,8 +7,234 @@
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>Copyright (c) 2016-2017 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
-    <lastBuildDate>Fri, 24 Mar 2017 23:54:00 -0700</lastBuildDate>
+    <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate>
     <atom:link href="https://technius.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    
+    <item>
+      <title>Cleaner Error Handling in Scala with Cats EitherT</title>
+      <link>https://technius.github.io/post/eithert-error-handling/</link>
+      <pubDate>Tue, 09 May 2017 22:04:06 -0700</pubDate>
+      
+      <guid>https://technius.github.io/post/eithert-error-handling/</guid>
+      <description>
+
+&lt;h1 id=&#34;introduction&#34;&gt;Introduction&lt;/h1&gt;
+
+&lt;p&gt;In Scala, it&amp;rsquo;s a common practice to handle errors or perform validation using
+&lt;code&gt;Option&lt;/code&gt; or &lt;code&gt;Either&lt;/code&gt;. For example, a form on a website may be validated on a
+server by using a series of &lt;code&gt;Either&lt;/code&gt;s, which will return the valid model data or
+a message explaining the problems in the form submission. However, adding
+more complicated concerns into the &lt;code&gt;Either&lt;/code&gt; sequence, such as &lt;code&gt;Option&lt;/code&gt;s or
+&lt;code&gt;Future&lt;/code&gt;s, requires a lot of boilerplate.&lt;/p&gt;
+
+&lt;p&gt;To see how this might happen, let&amp;rsquo;s consider a simple example, account
+registration. In our case, an account consists of a username, a password and an
+email address.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;case class Account(username: String, password: String, email: String)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;To register for an account, a new user has to provide all three of these fields,
+which usually follow a set of restrictions. For example, most websites require
+passwords to have a minimum length, and some websites don&amp;rsquo;t allow usernames to
+have spaces. The user registration form might be validated like this:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;// Note: This example requires Scala 2.12, which allows Either to be used
+// in for comprehensions
+
+import scala.util.{ Either, Left, Right }
+
+type ErrorOr[A] = Either[String, A]
+
+def validateUsername(username: String): ErrorOr[String] = ???
+def validatePassword(password: String): ErrorOr[String] = ???
+def validateEmail(email: String): ErrorOr[String] = ???
+
+def validateAccount(usernameInput: String, passwordInput: String, emailInput: String): ErrorOr[Account] =
+  for {
+    username &amp;lt;- validateUsername(usernameInput)
+    password &amp;lt;- validatePassword(passwordInput)
+    email &amp;lt;- validateEmail(emailInput)
+  } yield Account(usernameInput, passwordInput, email)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This looks clean, but creating the actual account isn&amp;rsquo;t. For example, user
+registration might involve checking for existing accounts, saving the account a
+database, and sending a welcome email. In addition, the aforementioned actions
+may need to occur asynchronously, which means that we have to handle &lt;code&gt;Future&lt;/code&gt;s,
+as well.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def findAccountWithEmail(email: String): Future[Option[Account]] = ???
+def sendWelcomeEmail(email: String): Future[Unit] = ???
+def insertAccountIntoDatabase(newAccount: Account): Future[Account] = ???
+
+def registerAccount(usernameInput: String, passwordInput: String, emailInput: String): Future[ErrorOr[Account]] = {
+  validateAccount(usernameInput, passwordInput, emailInput).fold(
+    error =&amp;gt; Future.successful(Left(error)),
+    validAccount =&amp;gt; findAccountWithEmail(emailInput) flatMap {
+      case Some(_) =&amp;gt;
+        val errorMessage = &amp;quot;Account with this email already exists!&amp;quot;
+        Future.successful(Left(errorMessage))
+      case None =&amp;gt;
+        for {
+          _ &amp;lt;- insertAccountIntoDatabase(validAccount)
+          _ &amp;lt;- sendWelcomeEmail(validAccount.email)
+        } yield Right(validAccount)
+    }
+  )
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;There&amp;rsquo;s a lot of noise that distracts from how the process works. Also, it&amp;rsquo;s a
+pain to write the boilerplate, especially since form validation is quite common.&lt;/p&gt;
+
+&lt;p&gt;The problem is that the steps don&amp;rsquo;t compose very well. It would be far nicer if
+we could just write a single for-comprehension that deals strictly with &lt;code&gt;Either&lt;/code&gt;
+and let some other underlying mechanism handle the &lt;code&gt;Future&lt;/code&gt; boilerplate. For
+example, a clean hypothetical example of a &lt;code&gt;registerAccount&lt;/code&gt; function would be&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def registerAccount(usernameInput: String, passwordInput: String, emailInput: String): Future[ErrorOr[Account]] =
+  for {
+    validAccount &amp;lt;- validateAccount(usernameInput, passwordInput, emailInput)
+    accountOpt &amp;lt;- findAccount(validAccount.email) if accountOpt.isEmpty
+    _ &amp;lt;- insertAccountIntoDatabase(validAccount)
+    _ &amp;lt;- sendWelcomeEmail(validAccount.email)
+  } yield validAccount
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h1 id=&#34;abstracting-away-either-handling&#34;&gt;Abstracting Away Either Handling&lt;/h1&gt;
+
+&lt;p&gt;We can get pretty close to that hypothetical example by using the &lt;code&gt;EitherT&lt;/code&gt;
+monad transformer. It&amp;rsquo;s not necessary to know what a &amp;ldquo;monad transformer&amp;rdquo; is,
+only that &lt;code&gt;EitherT&lt;/code&gt; is a wrapper for some effectful type (e.g. &lt;code&gt;Option&lt;/code&gt; or
+&lt;code&gt;Future&lt;/code&gt;) that can abstract away the effect and handle the contents of the type
+in a more convenient manner. I&amp;rsquo;m going to use the &lt;code&gt;EitherT&lt;/code&gt; from cats, but the
+&lt;code&gt;EitherT&lt;/code&gt; from scalaz should also work (albeit with different function names).&lt;/p&gt;
+
+&lt;p&gt;Using &lt;code&gt;EitherT&lt;/code&gt; is pretty straightforward: wrap your desired data in &lt;code&gt;EitherT&lt;/code&gt;,
+compose the &lt;code&gt;EitherT&lt;/code&gt; values using a for-comprehension, and then extract the
+final wrapped &lt;code&gt;F[Either[B, A]]&lt;/code&gt; using the &lt;code&gt;value&lt;/code&gt; method, where &lt;code&gt;F&lt;/code&gt; is the
+effectful type, &lt;code&gt;B&lt;/code&gt; is the error type, and &lt;code&gt;A&lt;/code&gt; is the type of the valid data.
+Here&amp;rsquo;s an example using &lt;code&gt;Future&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;type Result[A] = EitherT[Future, String, A] // wraps a Future[Either[String, A]]
+
+val numberET: Result[Int] = EitherT.pure(5) // pure has type A  =&amp;gt; EitherT[F, B, A]
+val numberOpt = Some(10)
+
+val finalEitherT = for {
+  n &amp;lt;- numberET
+  // fromOption transforms an Option into an Right if it exists, or a Left with
+  // erroraneous value otherwise.
+  numberOpt &amp;lt;- EitherT.fromOption(numberOpt, &amp;quot;Number not defined&amp;quot;)
+} yield (n + numberOpt)
+
+val myFuture: Future[Either[String, Int]] = finalEitherT.value // convert EitherT to Future
+
+val lifted: Result[Int] = EitherT.fromEither(Right(5)) // convert Either to EitherT
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Failures work as expected, conforming to the short-circuiting nature of &lt;code&gt;Either&lt;/code&gt;:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;val successful: Result[Int] = EitherT.pure(5)
+val fail: Result[Int] = EitherT.fromEither(Left(&amp;quot;Nope&amp;quot;))
+val neverReached: Result[Int] = EitherT.pure(5)
+
+val myEitherT: Result[Int] = for {
+  a &amp;lt;- successful
+  b &amp;lt;- fail
+  c &amp;lt;- neverReached
+} yield c
+
+println(myEitherT.value) // Nope
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Try out the &lt;code&gt;EitherT&lt;/code&gt; functions with different values and combinations, and see
+what you get!&lt;/p&gt;
+
+&lt;p&gt;There&amp;rsquo;s also a convenient function called &lt;code&gt;cond&lt;/code&gt;, which is similar to an
+if-statement for &lt;code&gt;EitherT&lt;/code&gt;.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def asyncDivide(n: Int, divisor: Int): Result[Int] =
+  EitherT.cond(divisor != 0, n / divisor, &amp;quot;Cannot divide by zero&amp;quot;)
+
+asyncDivide(5, 0) // Cannot divide by zero
+asyncDivide(10, 2) // Successful
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;h1 id=&#34;reimplementing-registeraccount&#34;&gt;Reimplementing &lt;code&gt;registerAccount&lt;/code&gt;&lt;/h1&gt;
+
+&lt;p&gt;Now that we&amp;rsquo;re armed with &lt;code&gt;EitherT&lt;/code&gt;, let&amp;rsquo;s reimplement &lt;code&gt;registerAccount&lt;/code&gt; in a
+more elegant way. The goal is to make the logic more explicit by ordering each
+step sequentially. First, let&amp;rsquo;s bring back the handy &lt;code&gt;Result&lt;/code&gt; alias:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;type Result[A] = EitherT[Future, String, A]
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Next, let&amp;rsquo;s refactor the &lt;code&gt;validateAccount&lt;/code&gt; logic. Since &lt;code&gt;Either&lt;/code&gt; is already
+returned for each step, all we have to do is lift each &lt;code&gt;Either&lt;/code&gt; with
+&lt;code&gt;EitherT.fromEither&lt;/code&gt;.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def validateAccount(usernameInput: String, passwordInput: String, emailInput: String): Result[Account] =
+  for {
+    username &amp;lt;- EitherT.fromEither(validateUsername(usernameInput))
+    password &amp;lt;- EitherT.fromEither(validatePassword(passwordInput))
+    email &amp;lt;- EitherT.fromEither(validateEmail(emailInput))
+  } yield Account(usernameInput, passwordInput, email)
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;The problematic part is testing for the existing account, since it causes the
+logic to branch off:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def findAccountWithEmail(email: String): Future[Option[Account]] = ???
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;If the account can&amp;rsquo;t be found, it should return an error message and stop the
+registration immediately. Otherwise, it should continue with registration.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def testForExistingAccount(email: String): Result[Unit] =
+    EitherT(findAccountWithEmail(email) map {
+      case Some(_) =&amp;gt; Left(&amp;quot;An account with this email already exists&amp;quot;)
+      case None =&amp;gt; Right(())
+    })
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now, all that remains is to compose the steps in the &lt;code&gt;registerAccount&lt;/code&gt; function.
+This should be trivial, since the types that we&amp;rsquo;re dealing with are &lt;code&gt;Future&lt;/code&gt;,
+&lt;code&gt;Either&lt;/code&gt;, and &lt;code&gt;EitherT&lt;/code&gt;, which can all be combined into &lt;code&gt;EitherT&lt;/code&gt; in a single
+for-comprehension.&lt;/p&gt;
+
+&lt;pre&gt;&lt;code class=&#34;language-scala&#34;&gt;def registerAccount(usernameInput: String, passwordInput: String, emailInput: String): Future[ErrorOr[Account]] = {
+  val eitherT: Result[Account] = for {
+    newAccount &amp;lt;- validateAccount(usernameInput, passwordInput, emailInput)
+    _ &amp;lt;- testForExistingAccount(emailInput)
+    _ &amp;lt;- EitherT(insertAccountIntoDatabase(newAccount))
+    _ &amp;lt;- EitherT(sendWelcomeEmail(newAccount.email))
+  } yield newAccount
+
+  eitherT.value
+}
+&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;This is pretty close to the ideal code, and it&amp;rsquo;s very easy to understand!&lt;/p&gt;
+
+&lt;h1 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h1&gt;
+
+&lt;p&gt;I&amp;rsquo;ve shown that using &lt;code&gt;EitherT&lt;/code&gt; can make error handling far more readable. Like
+I briefly mentioned above, &lt;code&gt;EitherT&lt;/code&gt; works for effectful types such as
+&lt;code&gt;Option[Either[String, Int]]&lt;/code&gt; or &lt;code&gt;IO[Either[String, Int]]&lt;/code&gt;. Since these types
+are so generally, it&amp;rsquo;s easy to see that &lt;code&gt;EitherT&lt;/code&gt; has a large variety of use
+cases, especially for short-circuiting steps.&lt;/p&gt;
+
+&lt;p&gt;Sometimes, it might be desirable to use &lt;code&gt;EitherT&lt;/code&gt; in situations involving
+parallel validation (e.g. validate all fields at the same time and return a list
+of all errors). In that case, with some effort, &lt;code&gt;Validated&lt;/code&gt; (or &lt;code&gt;Validation&lt;/code&gt;)
+can be used with &lt;code&gt;EitherT&lt;/code&gt; to add parallel validation. Use &lt;code&gt;Either&lt;/code&gt; for
+sequential validation and &lt;code&gt;Validated&lt;/code&gt; for parallel validation for the best
+effects! See the &lt;a href=&#34;http://typelevel.org/cats/datatypes/either.html&#34;&gt;&lt;code&gt;Either&lt;/code&gt;&lt;/a&gt;
+and &lt;a href=&#34;http://typelevel.org/cats/datatypes/validated.html&#34;&gt;&lt;code&gt;Validation&lt;/code&gt;&lt;/a&gt; documentation for more information.&lt;/p&gt;
+</description>
+    </item>
     
     <item>
       <title>Improving Akka HTTP REST API Response Handling with Marshallers</title>
