@@ -1,9 +1,8 @@
 +++
-date = "2017-04-30T11:23:06-07:00"
+date = "2017-05-09T22:04:06-07:00"
 title = "Cleaner Error Handling in Scala with Cats EitherT"
 tags = ["scala"]
 categories = ["Scala"]
-draft = true
 +++
 
 # Introduction
@@ -102,13 +101,13 @@ monad transformer. It's not necessary to know what a "monad transformer" is,
 only that `EitherT` is a wrapper for some effectful type (e.g. `Option` or
 `Future`) that can abstract away the effect and handle the contents of the type
 in a more convenient manner. I'm going to use the `EitherT` from cats, but the
-`EitherT` from scalaz should also work.
+`EitherT` from scalaz should also work (albeit with different function names).
 
 Using `EitherT` is pretty straightforward: wrap your desired data in `EitherT`,
 compose the `EitherT` values using a for-comprehension, and then extract the
 final wrapped `F[Either[B, A]]` using the `value` method, where `F` is the
 effectful type, `B` is the error type, and `A` is the type of the valid data.
-Here's an example:
+Here's an example using `Future`:
 
 ```scala
 type Result[A] = EitherT[Future, String, A] // wraps a Future[Either[String, A]]
@@ -118,28 +117,93 @@ val numberOpt = Some(10)
 
 val finalEitherT = for {
   n <- numberET
-
   // fromOption transforms an Option into an Right if it exists, or a Left with
   // erroraneous value otherwise.
   numberOpt <- EitherT.fromOption(numberOpt, "Number not defined")
 } yield (n + numberOpt)
 
-val myFuture: Future[Either[String, Int]] = finalEitherT.value
+val myFuture: Future[Either[String, Int]] = finalEitherT.value // convert EitherT to Future
+
+val lifted: Result[Int] = EitherT.fromEither(Right(5)) // convert Either to EitherT
 ```
 
-TODO failures
+Failures work as expected, conforming to the short-circuiting nature of `Either`:
 
-# Implementing `registerAccount`
+```scala
+val successful: Result[Int] = EitherT.pure(5)
+val fail: Result[Int] = EitherT.fromEither(Left("Nope"))
+val neverReached: Result[Int] = EitherT.pure(5)
 
-TODO
+val myEitherT: Result[Int] = for {
+  a <- successful
+  b <- fail
+  c <- neverReached
+} yield c
+
+println(myEitherT.value) // Nope
+```
+
+Try out the `EitherT` functions with different values and combinations, and see
+what you get!
+
+There's also a convenient function called `cond`, which is similar to an
+if-statement for `EitherT`.
+
+```scala
+def asyncDivide(n: Int, divisor: Int): Result[Int] =
+  EitherT.cond(divisor != 0, n / divisor, "Cannot divide by zero")
+
+asyncDivide(5, 0) // Cannot divide by zero
+asyncDivide(10, 2) // Successful
+```
+
+# Reimplementing `registerAccount`
+
+Now that we're armed with `EitherT`, let's reimplement `registerAccount` in a
+more elegant way. The goal is to make the logic more explicit by ordering each
+step sequentially. First, let's bring back the handy `Result` alias:
+
+```scala
+type Result[A] = EitherT[Future, String, A]
+```
+
+Next, let's refactor the `validateAccount` logic. Since `Either` is already
+returned for each step, all we have to do is lift each `Either` with
+`EitherT.fromEither`.
+
+```scala
+def validateAccount(usernameInput: String, passwordInput: String, emailInput: String): Result[Account] =
+  for {
+    username <- EitherT.fromEither(validateUsername(usernameInput))
+    password <- EitherT.fromEither(validatePassword(passwordInput))
+    email <- EitherT.fromEither(validateEmail(emailInput))
+  } yield Account(usernameInput, passwordInput, email)
+```
+
+The problematic part is testing for the existing account, since it causes the
+logic to branch off:
+
+```scala
+def findAccountWithEmail(email: String): Future[Option[Account]] = ???
+```
+
+If the account can't be found, it should return an error message and stop the
+registration immediately. Otherwise, it should continue with registration.
 
 ```scala
 def testForExistingAccount(email: String): Result[Unit] =
     EitherT(findAccountWithEmail(email) map {
-      case Some(_) => Left("Account with this email already exists")
+      case Some(_) => Left("An account with this email already exists")
       case None => Right(())
     })
+```
 
+Now, all that remains is to compose the steps in the `registerAccount` function.
+This should be trivial, since the types that we're dealing with are `Future`,
+`Either`, and `EitherT`, which can all be combined into `EitherT` in a single
+for-comprehension.
+
+```scala
 def registerAccount(usernameInput: String, passwordInput: String, emailInput: String): Future[ErrorOr[Account]] = {
   val eitherT: Result[Account] = for {
     newAccount <- validateAccount(usernameInput, passwordInput, emailInput)
@@ -152,26 +216,24 @@ def registerAccount(usernameInput: String, passwordInput: String, emailInput: St
 }
 ```
 
+This is pretty close to the ideal code, and it's very easy to understand!
+
 # Conclusion
 
-I've shown that using `EitherT` can make data validation far more readable.
-However, my examples can still be improved in various ways:
+I've shown that using `EitherT` can make error handling far more readable. Like
+I briefly mentioned above, `EitherT` works for effectful types such as
+`Option[Either[String, Int]]` or `IO[Either[String, Int]]`. Since these types
+are so generally, it's easy to see that `EitherT` has a large variety of use
+cases, especially for short-circuiting steps.
 
-* Use an algebraic data type to model error instead of using strings. ADTs have
-  better type safety, can be exhaustively checked by the compiler in pattern
-  matches, and are easily serialized using one of the many available JSON
-  libraries.
-* Due to its short-ciruiting nature, `Either` might not be desirable in cases
-  such as form validation, where multiple fields could be incorrect at the same
-  time. The alternative is the `Validated` (or `Validation`) type, which can be
-  used to perform validations in parallel. Luckily, a `Validated` can also be
-  used inside of an `EitherT` with a little bit of effort. For the best effect,
-  use _both_ `Either` and `Validated`, the former for sequential validation, and
-  the latter for parallel validation. See the [`Either`][either_docs_cats]
-  and [`Validation`][validated_docs_cats] documentation for more information.
+Sometimes, it might be desirable to use `EitherT` in situations involving
+parallel validation (e.g. validate all fields at the same time and return a list
+of all errors). In that case, with some effort, `Validated` (or `Validation`)
+can be used with `EitherT` to add parallel validation. Use `Either` for
+sequential validation and `Validated` for parallel validation for the best
+effects! See the [`Either`][either_docs_cats]
+and [`Validation`][validated_docs_cats] documentation for more information.
 
-[fs2_task]: https://oss.sonatype.org/service/local/repositories/releases/archive/co/fs2/fs2-core_2.12/0.9.5/fs2-core_2.12-0.9.5-javadoc.jar/!/fs2/Task.html
-[fs2]: https://github.com/functional-streams-for-scala/fs2
 [cats]: http://typelevelorg/cats
 [either_docs]: http://scala-lang.org/files/archive/api/current/scala/util/Either.html
 [either_docs_cats]: http://typelevel.org/cats/datatypes/either.html
