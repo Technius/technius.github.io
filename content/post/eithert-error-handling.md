@@ -187,7 +187,7 @@ logic to branch off:
 def findAccountWithEmail(email: String): Future[Option[Account]] = ???
 ```
 
-If the account can't be found, it should return an error message and stop the
+If the account already exists, it should return an error message and stop the
 registration immediately. Otherwise, it should continue with registration.
 
 ```scala
