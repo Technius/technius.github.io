@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Contents on Bryan Tan&#39;s Blog</title>
+    <link>https://technius.github.io/content/</link>
+    <description>Recent content in Contents on Bryan Tan&#39;s Blog</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <copyright>Copyright (c) 2016-2017 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
+    <lastBuildDate>Sat, 17 Jun 2017 08:37:56 -0700</lastBuildDate>
+    
+	<atom:link href="https://technius.github.io/content/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>The Curry-Howard Isomorphism and Scala</title>
+      <link>https://technius.github.io/content/curry-howard-scala/</link>
+      <pubDate>Sat, 17 Jun 2017 08:37:56 -0700</pubDate>
+      
+      <guid>https://technius.github.io/content/curry-howard-scala/</guid>
+      <description>Introduction If you have been around functional programming, you have probably seen the term &amp;ldquo;curry-howard isomorphism&amp;rdquo; used in talks or articles. Wikipedia defines the Curry-Howard Isomorphism as
+ the observation that two families of seemingly unrelated formalisms—namely, the proof systems on one hand, and the models of computation on the other—are in fact the same kind of mathematical objects.
+ More widely known, it is the idea of &amp;ldquo;proofs as programs.</description>
+    </item>
+    
+  </channel>
+</rss>

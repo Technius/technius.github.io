@@ -1,11 +1,10 @@
 <html lang="en">
 <head>
-	<meta name="generator" content="Hugo 0.25.1" />
 
   
   <meta charset="utf-8">
-  <title>Bryan Tan&#39;s Blog</title>
-  <meta name="description" content="Bryan Tan&#39;s Blog">
+  <title>The Curry-Howard Isomorphism and Scala</title>
+  <meta name="description" content="The Curry-Howard Isomorphism and Scala">
   <meta name="author" content="Bryan Tan">
 
   
@@ -82,143 +81,48 @@
 <div class="pure-g">
     <div class="pure-u-1-24 pure-u-md-5-24"></div>
 	<div class="pure-u-11-12 pure-u-md-5-8">
-	  <p class="posts-name">Recent posts:</p>
+        <div class="post">
 
-	  <ul class="posts">
-		
-		
-		
-		<li>
-		  <a href="https://technius.github.io/post/eithert-error-handling/">Cleaner Error Handling in Scala with Cats EitherT</a>
+            <div class="post-title">
+                <p class="footnote">
+                    <time class="">2017-06-17</time>
+		            
+                    
+                    |
+                    
+                    
+                    tags:<a href="https://technius.github.io/tags/scala">scala</a> 
+                    
 
-		  <p class="footnote">
-			submitted <time datetime="2017-05-09T22:04:06-07:00" class="post-list timeago">2017-05-09T22:04:06-07:00</time>
+                    
+                    categories:<a href="https://technius.github.io/categories/scala">scala</a> 
+                    
 
-			
-			to
-			
+                    
+                </p>
+                <h1>The Curry-Howard Isomorphism and Scala</h1>
+            </div>
 
-			
-			tags:[ <a href="https://technius.github.io/tags/scala">scala</a> ]
-			
+            <div class="post-content">
+                
 
-			
-			categories:[ <a href="https://technius.github.io/categories/scala">Scala</a> ]
-			
+<h1 id="introduction">Introduction</h1>
 
-			
+<p>If you have been around functional programming, you have probably seen the term
+&ldquo;curry-howard isomorphism&rdquo; used in talks or articles. Wikipedia defines the
+Curry-Howard Isomorphism as</p>
 
-		  </p>
-		</li>
-		
-		
-		
-		<li>
-		  <a href="https://technius.github.io/post/akka-http-api-response-marshalling/">Improving Akka HTTP REST API Response Handling with Marshallers</a>
+<blockquote>
+<p>the observation that two families of seemingly unrelated formalisms—namely,
+the proof systems on one hand, and the models of computation on the other—are
+in fact the same kind of mathematical objects.</p>
+</blockquote>
 
-		  <p class="footnote">
-			submitted <time datetime="2017-03-24T23:54:00-07:00" class="post-list timeago">2017-03-24T23:54:00-07:00</time>
+<p>More widely known, it is the idea of &ldquo;proofs as programs.&rdquo; Let&rsquo;s examine this
+idea in more detail.</p>
 
-			
-			to
-			
-
-			
-			tags:[ <a href="https://technius.github.io/tags/scala">scala</a> <a href="https://technius.github.io/tags/akka-http">akka-http</a> <a href="https://technius.github.io/tags/rest-api">rest-api</a> <a href="https://technius.github.io/tags/web">web</a> ]
-			
-
-			
-			categories:[ <a href="https://technius.github.io/categories/scala">Scala</a> ]
-			
-
-			
-
-		  </p>
-		</li>
-		
-		
-		
-		<li>
-		  <a href="https://technius.github.io/post/rust-calculator-1/">Creating a Calculator in Rust, Part 1</a>
-
-		  <p class="footnote">
-			submitted <time datetime="2017-01-13T00:00:00Z" class="post-list timeago">2017-01-13T00:00:00Z</time>
-
-			
-
-			
-
-			
-
-			
-
-		  </p>
-		</li>
-		
-		
-		
-		
-		
-		<li>
-		  <a href="https://technius.github.io/post/hello/">Hello world!</a>
-
-		  <p class="footnote">
-			submitted <time datetime="2016-12-15T00:00:00Z" class="post-list timeago">2016-12-15T00:00:00Z</time>
-
-			
-			to
-			
-
-			
-
-			
-			categories:[ <a href="https://technius.github.io/categories/misc">misc</a> ]
-			
-
-			
-
-		  </p>
-		</li>
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		<li>
-		  <a href="https://technius.github.io/post/">Posts</a>
-
-		  <p class="footnote">
-			submitted <time datetime="2017-05-09T22:04:06-07:00" class="post-list timeago">2017-05-09T22:04:06-07:00</time>
-
-			
-
-			
-
-			
-
-			
-
-		  </p>
-		</li>
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-	  </ul>
+            </div>
+        </div>
 	</div>
     <div class="pure-u-1-24 pure-u-md-1-6"></div>
 </div>
