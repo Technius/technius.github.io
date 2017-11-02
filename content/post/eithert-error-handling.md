@@ -1,5 +1,6 @@
 +++
 date = "2017-05-09T22:04:06-07:00"
+lastmod = "2017-11-02"
 title = "Cleaner Error Handling in Scala with Cats EitherT"
 tags = ["scala"]
 categories = ["Scala"]
@@ -223,8 +224,10 @@ This is pretty close to the ideal code, and it's very easy to understand!
 I've shown that using `EitherT` can make error handling far more readable. Like
 I briefly mentioned above, `EitherT` works for effectful types such as
 `Option[Either[String, Int]]` or `IO[Either[String, Int]]`. Since these types
-are so generally, it's easy to see that `EitherT` has a large variety of use
-cases, especially for short-circuiting steps.
+can be quite general, it's easy to see that `EitherT` has a large variety of use
+cases, especially for short-circuiting steps. To find more examples on how to
+use `EitherT`, consult the [`EitherT` docs on the Cats
+website][eithert_docs_cats].
 
 Sometimes, it might be desirable to use `EitherT` in situations involving
 parallel validation (e.g. validate all fields at the same time and return a list
@@ -234,7 +237,13 @@ sequential validation and `Validated` for parallel validation for the best
 effects! See the [`Either`][either_docs_cats]
 and [`Validation`][validated_docs_cats] documentation for more information.
 
+**Update**: Thanks to [@Deliganli for fixing a mistake][typo_pr] in the
+`Reimplementing registerAccount` section. I also fixed another mistake and added
+a reference to the `EitherT` docs on the Cats website.
+
 [cats]: http://typelevelorg/cats
 [either_docs]: http://scala-lang.org/files/archive/api/current/scala/util/Either.html
 [either_docs_cats]: http://typelevel.org/cats/datatypes/either.html
+[eithert_docs_cats]: https://typelevel.github.io/cats/datatypes/eithert.html
 [validated_docs_cats]: http://typelevel.org/cats/datatypes/validated.html
+[typo_pr]: https://github.com/Technius/technius.github.io/pull/1
