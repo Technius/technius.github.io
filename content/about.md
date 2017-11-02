@@ -1,15 +1,16 @@
 +++
 categories = ["misc"]
-lastmod = "2016-03-24"
+lastmod = "2017-11-02"
 date = "2016-12-17"
 title = "About This Blog"
 slug = "about"
 description = "biographical information"
 +++
 
-Hi! I'm Bryan Tan, a senior in high school with a love for computer science and
-technology. In particular, I enjoy writing and refining code to be as elegant as
-possible. Check out my posts to get a glimpse of what I like to do!
+Hi! I'm Bryan Tan, a first-year Computing major at UC Santa Barbara with a love
+for computer science and technology. In particular, I enjoy writing and refining
+code to be as elegant as possible. Check out my posts to get a glimpse of what I
+like to do!
 
 
 This blog was generated using [Hugo](https://gohugo.io/) and uses
