@@ -311,8 +311,10 @@ for-comprehension.</p>
 <p>I&rsquo;ve shown that using <code>EitherT</code> can make error handling far more readable. Like
 I briefly mentioned above, <code>EitherT</code> works for effectful types such as
 <code>Option[Either[String, Int]]</code> or <code>IO[Either[String, Int]]</code>. Since these types
-are so generally, it&rsquo;s easy to see that <code>EitherT</code> has a large variety of use
-cases, especially for short-circuiting steps.</p>
+can be quite general, it&rsquo;s easy to see that <code>EitherT</code> has a large variety of use
+cases, especially for short-circuiting steps. To find more examples on how to
+use <code>EitherT</code>, consult the <a href="https://typelevel.github.io/cats/datatypes/eithert.html"><code>EitherT</code> docs on the Cats
+website</a>.</p>
 
 <p>Sometimes, it might be desirable to use <code>EitherT</code> in situations involving
 parallel validation (e.g. validate all fields at the same time and return a list
@@ -321,6 +323,10 @@ can be used with <code>EitherT</code> to add parallel validation. Use <code>Eith
 sequential validation and <code>Validated</code> for parallel validation for the best
 effects! See the <a href="http://typelevel.org/cats/datatypes/either.html"><code>Either</code></a>
 and <a href="http://typelevel.org/cats/datatypes/validated.html"><code>Validation</code></a> documentation for more information.</p>
+
+<p><strong>Update</strong>: Thanks to <a href="https://github.com/Technius/technius.github.io/pull/1">@Deliganli for fixing a mistake</a> in the
+<code>Reimplementing registerAccount</code> section. I also fixed another mistake and added
+a reference to the <code>EitherT</code> docs on the Cats website.</p>
 
             </div>
         </div>
