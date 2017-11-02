@@ -9,7 +9,12 @@ build:
 	@git submodule update
 	@hugo
 
-publish: pull-public build
+pre-publish:
+	cd public && \
+		git reset HEAD && \
+		git checkout -- .
+
+publish: pull-public pre-publish build
 	cd public && \
 		git add -A && \
 		git commit -am "Update site" && \
