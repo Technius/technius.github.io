@@ -6,7 +6,7 @@
     <description>Recent content on Bryan Tan&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <copyright>Copyright (c) 2016-2017 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
+    <copyright>Copyright (c) 2016-2018 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
     <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate>
     
 	<atom:link href="https://technius.github.io/index.xml" rel="self" type="application/rss+xml" />
@@ -46,9 +46,9 @@ Motivation To demonstrate how status codes are usually returned in Akka HTTP, le
       <pubDate>Sat, 17 Dec 2016 00:00:00 +0000</pubDate>
       
       <guid>https://technius.github.io/about/</guid>
-      <description>Hi! I&amp;rsquo;m Bryan Tan, a first-year Computing major at UC Santa Barbara with a love for computer science and technology. In particular, I enjoy writing and refining code to be as elegant as possible. Check out my posts to get a glimpse of what I like to do!
+      <description>Hi! I&amp;rsquo;m Bryan Tan, a computer science student with a love for programming languages and mathematics. In particular, I enjoy writing and refining code to be as elegant as possible. Check out my posts to get a glimpse of what I like to do!
 This blog was generated using Hugo and uses the nofancy theme by Zack Guo.
-Except otherwise noted, (1) the articles are licensed under a CC-BY 4.</description>
+Except otherwise noted, (1) the articles are licensed under a CC-BY 4.0 license and (2) code snippets contained within the articles are licensed under the MIT License.</description>
     </item>
     
     <item>
