@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Misc on Bryan Tan&#39;s Blog</title>
-    <link>https://technius.github.io/categories/misc/</link>
+    <link>https://technius.net/categories/misc/</link>
     <description>Recent content in Misc on Bryan Tan&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>Copyright (c) 2016-2018 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
     <lastBuildDate>Sat, 17 Dec 2016 00:00:00 +0000</lastBuildDate>
     
-	<atom:link href="https://technius.github.io/categories/misc/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://technius.net/categories/misc/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>About This Blog</title>
-      <link>https://technius.github.io/about/</link>
+      <link>https://technius.net/about/</link>
       <pubDate>Sat, 17 Dec 2016 00:00:00 +0000</pubDate>
       
-      <guid>https://technius.github.io/about/</guid>
+      <guid>https://technius.net/about/</guid>
       <description>Hi! I&amp;rsquo;m Bryan Tan, a computer science student with a love for programming languages and mathematics. In particular, I enjoy writing and refining code to be as elegant as possible. Check out my posts to get a glimpse of what I like to do!
 This blog was generated using Hugo and uses the nofancy theme by Zack Guo.
 Except otherwise noted, (1) the articles are licensed under a CC-BY 4.0 license and (2) code snippets contained within the articles are licensed under the MIT License.</description>
@@ -25,10 +25,10 @@ Except otherwise noted, (1) the articles are licensed under a CC-BY 4.0 license 
     
     <item>
       <title>Hello world!</title>
-      <link>https://technius.github.io/post/hello/</link>
+      <link>https://technius.net/post/hello/</link>
       <pubDate>Thu, 15 Dec 2016 00:00:00 +0000</pubDate>
       
-      <guid>https://technius.github.io/post/hello/</guid>
+      <guid>https://technius.net/post/hello/</guid>
       <description>Obligatory hello world post.
 I&amp;rsquo;m setting up a blog again , but this time, I&amp;rsquo;m planning on actually posting stuff! This time, the goal is to improve my writing skills; though my grammar is quite good, I&amp;rsquo;m terrible at writing anything other than directions, code, or technical explanations (though I&amp;rsquo;ll probably end up spending most of my time on these types of writing). In particular, I have a really hard time putting essays together.</description>
     </item>

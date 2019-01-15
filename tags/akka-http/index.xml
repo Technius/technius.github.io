@@ -2,22 +2,22 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Akka Http on Bryan Tan&#39;s Blog</title>
-    <link>https://technius.github.io/tags/akka-http/</link>
+    <link>https://technius.net/tags/akka-http/</link>
     <description>Recent content in Akka Http on Bryan Tan&#39;s Blog</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>Copyright (c) 2016-2018 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
     <lastBuildDate>Fri, 24 Mar 2017 23:54:00 -0700</lastBuildDate>
     
-	<atom:link href="https://technius.github.io/tags/akka-http/index.xml" rel="self" type="application/rss+xml" />
+	<atom:link href="https://technius.net/tags/akka-http/index.xml" rel="self" type="application/rss+xml" />
     
     
     <item>
       <title>Improving Akka HTTP REST API Response Handling with Marshallers</title>
-      <link>https://technius.github.io/post/akka-http-api-response-marshalling/</link>
+      <link>https://technius.net/post/akka-http-api-response-marshalling/</link>
       <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
       
-      <guid>https://technius.github.io/post/akka-http-api-response-marshalling/</guid>
+      <guid>https://technius.net/post/akka-http-api-response-marshalling/</guid>
       <description>I&amp;rsquo;ve been trying out akka-http for a while now, and I found it to be great for making REST APIs. However, it is complicated to use and can lead to a massive amount of boilerplate if its features aren&amp;rsquo;t taken advantage of completely. In this article, I&amp;rsquo;m going to to take a look at one feature of Akka HTTP that I explored recently: marshallers.
 Motivation To demonstrate how status codes are usually returned in Akka HTTP, let&amp;rsquo;s consider a simple example of a REST API: an online notepad.</description>
     </item>
