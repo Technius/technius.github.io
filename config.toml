@@ -1,4 +1,4 @@
-baseurl = "https://technius.github.io/"
+baseurl = "https://technius.net/"
 languageCode = "en-us"
 title = "Bryan Tan's Blog"
 newContentEditor = "nvim"
