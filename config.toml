@@ -2,13 +2,20 @@ baseurl = "https://technius.net/"
 languageCode = "en-us"
 title = "Bryan Tan's Blog"
 newContentEditor = "nvim"
-theme = "nofancy"
+theme = "plainsite"
 description = "Random thoughts and ideas"
 copyright = "Copyright (c) 2016-2018 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License."
+
+# Using monokai theme: hugo gen chromastyles > static/css/highlight.css
+# pygmentsStyle = "monokai"
+pygmentsUseClasses = true
+pygmentsCodefences = true
 
 [params]
 highlight = "monokai"
 topmenu = "categories"
+
+[menus]
 
 [author]
 name = "Bryan Tan"
