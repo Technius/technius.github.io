@@ -1,7 +1,7 @@
 {{ define "main" }}
 <article class="prose-center prose-width">
     <header class="article-header">
-        <h1>{{ .Title }}</h1>
+        <h1>{{ .Title }} {{ if .Draft }} (Draft) {{ end }}</h1>
         <span class="article-header-postinfo">
             <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "Jan 2, 2006" }}</time>
         </span>

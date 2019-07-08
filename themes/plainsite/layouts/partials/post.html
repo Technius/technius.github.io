@@ -1,5 +1,6 @@
 <span class="article-summary-title">
     <a href="{{ .RelPermalink }}">{{ .Title }}</a>
+    {{ if .Draft }} (Draft) {{ end }}
 </span> <br />
 <span class="article-header-postinfo">{{ .Date.Format "Jan 2, 2006" }}</span>
 <p>

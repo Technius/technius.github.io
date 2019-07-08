@@ -134,7 +134,7 @@ struct NoLabels { // can have no fields
 
 and here are non-examples:
 
-```
+```c
 struct NotARecord {
   int bar;
   int bar; // labels must be unique!
