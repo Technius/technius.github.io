@@ -28,8 +28,9 @@ body {
     margin-left: auto;
     margin-right: auto;
 
-    /* Max width for readability */
-    max-width: 60em;
+    /* Set width for readability */
+    width: 60em;
+    max-width: calc(100% - 4em); /* 4em for padding */
 }
 
 .site-header {
@@ -56,6 +57,10 @@ body {
 }
 
 @media screen and (max-width: 760px) {
+    #main-content {
+        width: unset;
+    }
+
     #site-header-menu-label {
         display: inline-block;
         margin-right: 1em;

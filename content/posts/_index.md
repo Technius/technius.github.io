@@ -5,4 +5,6 @@ title = "Blog"
 weight = 10
 +++
 
-Things I've written about over the years.
+# Blog
+
+Things I've written about over the years. ([Atom feed](/posts/index.xml))

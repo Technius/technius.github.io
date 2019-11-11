@@ -4,11 +4,16 @@ title = "Home"
 weight = 1
 +++
 
-I'm Bryan Tan, a computer science student with a love for software
-engineering and mathematics. I have a variety of interests, but I love
-functional programming and programming language theory in particular. Check out
-my posts to get a glimpse of what I like to do!
+## About Me
 
+I'm Bryan Tan, a computer science student with a love for software engineering
+and theoretical computer science. I have a variety of interests, but I am most
+excited about functional programming, programming language theory, and
+compilers. Check out my posts to get a glimpse of what I like to do!
+
+You can find me on [Github](https://github.com/Technius).
+
+## Website Errata
 
 This website was generated using [Hugo](https://gohugo.io/).
 
