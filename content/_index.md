@@ -6,12 +6,15 @@ weight = 1
 
 ## About Me
 
-I'm Bryan Tan, a computer science student with a love for software engineering
-and theoretical computer science. I have a variety of interests, but I am most
-excited about functional programming, programming language theory, and
-compilers. Check out my posts to get a glimpse of what I like to do!
+I'm Bryan Tan, a software engineer with a love for programming language theory.
+In my day job, I work on compilers for machine learning hardware accelerators. I
+have a variety of interests, but I am most excited about functional programming,
+programming language theory, and compilers. Check out my [blog](/blog) or my
+[research profile page](/research) to get a glimpse of what I like to do!
 
-You can find me on [Github](https://github.com/Technius).
+You can find me on [GitHub](https://github.com/Technius) and
+[LinkedIn](https://www.linkedin.com/in/bryan-tan-08153079). I'm also reachable
+by email at `bryantan (AT) technius (DOT) net`.
 
 ## Website Errata
 

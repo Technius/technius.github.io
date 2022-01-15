@@ -1,5 +1,9 @@
 {{ define "main" }}
+
+{{ if .Site.BuildDrafts }}
+
 {{ .Content }}
+
 <ul class="article-summary-list">
     {{ range .Paginator.Pages }}
     <hr />
@@ -20,4 +24,10 @@
         Older posts
     </a>
 </div>
+{{ else }}
+
+<p>This part of the website is under construction...</p>
+
+{{ end }}
+
 {{ end }}
