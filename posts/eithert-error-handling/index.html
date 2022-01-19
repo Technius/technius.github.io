@@ -1,0 +1,233 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>  Bryan Tan&#39;s Website &ndash; Cleaner Error Handling in Scala with Cats EitherT  </title>
+        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/base-min.css">
+        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css" integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" crossorigin="anonymous">
+        <link rel="stylesheet" href="/css/style.css" />
+        <link rel="stylesheet" href="/css/highlight.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta charset="utf-8" />
+    </head>
+    <body>
+        <header class="site-header pure-menu pure-menu-horizontal">
+            <a href="/" class="pure-menu-heading pure-menu-link">Bryan Tan&#39;s Website</a>
+            <div class="site-header-menu-container">
+                <input type="checkbox" id="site-header-menu-button" />
+                <label id="site-header-menu-label" class="pure-menu-link"
+                       for="site-header-menu-button">Menu</label>
+                <ul id="site-header-menu" class="pure-menu-list">
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/">Home</a>
+                    </li>
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/projects/">Projects</a>
+                    </li>
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/research/">Research</a>
+                    </li>
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/posts/">Blog</a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </header>
+        <main id="main-content">
+            
+<article class="prose-center prose-width">
+    <header class="article-header">
+        <h1>Cleaner Error Handling in Scala with Cats EitherT </h1>
+        <span class="article-header-postinfo">
+            <time datetime="2017-05-09">May 9, 2017</time>
+        </span>
+    </header>
+    <section>
+        <h1 id="introduction">Introduction</h1>
+<p>In Scala, it&rsquo;s a common practice to handle errors or perform validation using
+<code>Option</code> or <code>Either</code>. For example, a form on a website may be validated on a
+server by using a series of <code>Either</code>s, which will return the valid model data or
+a message explaining the problems in the form submission. However, adding
+more complicated concerns into the <code>Either</code> sequence, such as <code>Option</code>s or
+<code>Future</code>s, requires a lot of boilerplate.</p>
+<p>To see how this might happen, let&rsquo;s consider a simple example, account
+registration. In our case, an account consists of a username, a password and an
+email address.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">case</span> <span class="k">class</span> <span class="nc">Account</span><span class="o">(</span><span class="n">username</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">password</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">email</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span>
+</code></pre></div><p>To register for an account, a new user has to provide all three of these fields,
+which usually follow a set of restrictions. For example, most websites require
+passwords to have a minimum length, and some websites don&rsquo;t allow usernames to
+have spaces. The user registration form might be validated like this:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="c1">// Note: This example requires Scala 2.12, which allows Either to be used
+</span><span class="c1">// in for comprehensions
+</span><span class="c1"></span>
+<span class="k">import</span> <span class="nn">scala.util.</span><span class="o">{</span> <span class="nc">Either</span><span class="o">,</span> <span class="nc">Left</span><span class="o">,</span> <span class="nc">Right</span> <span class="o">}</span>
+
+<span class="k">type</span> <span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">Either</span><span class="o">[</span><span class="kt">String</span>, <span class="kt">A</span><span class="o">]</span>
+
+<span class="k">def</span> <span class="n">validateUsername</span><span class="o">(</span><span class="n">username</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+<span class="k">def</span> <span class="n">validatePassword</span><span class="o">(</span><span class="n">password</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+<span class="k">def</span> <span class="n">validateEmail</span><span class="o">(</span><span class="n">email</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">String</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">validateAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">passwordInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">emailInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">Account</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">username</span> <span class="k">&lt;-</span> <span class="n">validateUsername</span><span class="o">(</span><span class="n">usernameInput</span><span class="o">)</span>
+    <span class="n">password</span> <span class="k">&lt;-</span> <span class="n">validatePassword</span><span class="o">(</span><span class="n">passwordInput</span><span class="o">)</span>
+    <span class="n">email</span> <span class="k">&lt;-</span> <span class="n">validateEmail</span><span class="o">(</span><span class="n">emailInput</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="nc">Account</span><span class="o">(</span><span class="n">usernameInput</span><span class="o">,</span> <span class="n">passwordInput</span><span class="o">,</span> <span class="n">email</span><span class="o">)</span>
+</code></pre></div><p>This looks clean, but creating the actual account isn&rsquo;t. For example, user
+registration might involve checking for existing accounts, saving the account a
+database, and sending a welcome email. In addition, the aforementioned actions
+may need to occur asynchronously, which means that we have to handle <code>Future</code>s,
+as well.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">findAccountWithEmail</span><span class="o">(</span><span class="n">email</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">Account</span><span class="o">]]</span> <span class="k">=</span> <span class="o">???</span>
+<span class="k">def</span> <span class="n">sendWelcomeEmail</span><span class="o">(</span><span class="n">email</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+<span class="k">def</span> <span class="n">insertAccountIntoDatabase</span><span class="o">(</span><span class="n">newAccount</span><span class="k">:</span> <span class="kt">Account</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Account</span><span class="o">]</span> <span class="k">=</span> <span class="o">???</span>
+
+<span class="k">def</span> <span class="n">registerAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">passwordInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">emailInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">Account</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">validateAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="o">,</span> <span class="n">passwordInput</span><span class="o">,</span> <span class="n">emailInput</span><span class="o">).</span><span class="n">fold</span><span class="o">(</span>
+    <span class="n">error</span> <span class="k">=&gt;</span> <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="n">error</span><span class="o">)),</span>
+    <span class="n">validAccount</span> <span class="k">=&gt;</span> <span class="n">findAccountWithEmail</span><span class="o">(</span><span class="n">emailInput</span><span class="o">)</span> <span class="n">flatMap</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Some</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span>
+        <span class="k">val</span> <span class="n">errorMessage</span> <span class="k">=</span> <span class="s">&#34;Account with this email already exists!&#34;</span>
+        <span class="nc">Future</span><span class="o">.</span><span class="n">successful</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="n">errorMessage</span><span class="o">))</span>
+      <span class="k">case</span> <span class="nc">None</span> <span class="k">=&gt;</span>
+        <span class="k">for</span> <span class="o">{</span>
+          <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">insertAccountIntoDatabase</span><span class="o">(</span><span class="n">validAccount</span><span class="o">)</span>
+          <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">sendWelcomeEmail</span><span class="o">(</span><span class="n">validAccount</span><span class="o">.</span><span class="n">email</span><span class="o">)</span>
+        <span class="o">}</span> <span class="k">yield</span> <span class="nc">Right</span><span class="o">(</span><span class="n">validAccount</span><span class="o">)</span>
+    <span class="o">}</span>
+  <span class="o">)</span>
+<span class="o">}</span>
+</code></pre></div><p>There&rsquo;s a lot of noise that distracts from how the process works. Also, it&rsquo;s a
+pain to write the boilerplate, especially since form validation is quite common.</p>
+<p>The problem is that the steps don&rsquo;t compose very well. It would be far nicer if
+we could just write a single for-comprehension that deals strictly with <code>Either</code>
+and let some other underlying mechanism handle the <code>Future</code> boilerplate. For
+example, a clean hypothetical example of a <code>registerAccount</code> function would be</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">registerAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">passwordInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">emailInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">Account</span><span class="o">]]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">validAccount</span> <span class="k">&lt;-</span> <span class="n">validateAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="o">,</span> <span class="n">passwordInput</span><span class="o">,</span> <span class="n">emailInput</span><span class="o">)</span>
+    <span class="n">accountOpt</span> <span class="k">&lt;-</span> <span class="n">findAccount</span><span class="o">(</span><span class="n">validAccount</span><span class="o">.</span><span class="n">email</span><span class="o">)</span> <span class="k">if</span> <span class="n">accountOpt</span><span class="o">.</span><span class="n">isEmpty</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">insertAccountIntoDatabase</span><span class="o">(</span><span class="n">validAccount</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">sendWelcomeEmail</span><span class="o">(</span><span class="n">validAccount</span><span class="o">.</span><span class="n">email</span><span class="o">)</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">validAccount</span>
+</code></pre></div><h1 id="abstracting-away-either-handling">Abstracting Away Either Handling</h1>
+<p>We can get pretty close to that hypothetical example by using the <code>EitherT</code>
+monad transformer. It&rsquo;s not necessary to know what a &ldquo;monad transformer&rdquo; is,
+only that <code>EitherT</code> is a wrapper for some effectful type (e.g. <code>Option</code> or
+<code>Future</code>) that can abstract away the effect and handle the contents of the type
+in a more convenient manner. I&rsquo;m going to use the <code>EitherT</code> from cats, but the
+<code>EitherT</code> from scalaz should also work (albeit with different function names).</p>
+<p>Using <code>EitherT</code> is pretty straightforward: wrap your desired data in <code>EitherT</code>,
+compose the <code>EitherT</code> values using a for-comprehension, and then extract the
+final wrapped <code>F[Either[B, A]]</code> using the <code>value</code> method, where <code>F</code> is the
+effectful type, <code>B</code> is the error type, and <code>A</code> is the type of the valid data.
+Here&rsquo;s an example using <code>Future</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">type</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">[</span><span class="kt">Future</span>, <span class="kt">String</span>, <span class="kt">A</span><span class="o">]</span> <span class="c1">// wraps a Future[Either[String, A]]
+</span><span class="c1"></span>
+<span class="k">val</span> <span class="n">numberET</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="mi">5</span><span class="o">)</span> <span class="c1">// pure has type A  =&gt; EitherT[F, B, A]
+</span><span class="c1"></span><span class="k">val</span> <span class="n">numberOpt</span> <span class="k">=</span> <span class="nc">Some</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">finalEitherT</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">n</span> <span class="k">&lt;-</span> <span class="n">numberET</span>
+  <span class="c1">// fromOption transforms an Option into an Right if it exists, or a Left with
+</span><span class="c1"></span>  <span class="c1">// erroraneous value otherwise.
+</span><span class="c1"></span>  <span class="n">numberOpt</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">fromOption</span><span class="o">(</span><span class="n">numberOpt</span><span class="o">,</span> <span class="s">&#34;Number not defined&#34;</span><span class="o">)</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="o">(</span><span class="n">n</span> <span class="o">+</span> <span class="n">numberOpt</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">myFuture</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Either</span><span class="o">[</span><span class="kt">String</span>, <span class="kt">Int</span><span class="o">]]</span> <span class="k">=</span> <span class="n">finalEitherT</span><span class="o">.</span><span class="n">value</span> <span class="c1">// convert EitherT to Future
+</span><span class="c1"></span>
+<span class="k">val</span> <span class="n">lifted</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">fromEither</span><span class="o">(</span><span class="nc">Right</span><span class="o">(</span><span class="mi">5</span><span class="o">))</span> <span class="c1">// convert Either to EitherT
+</span></code></pre></div><p>Failures work as expected, conforming to the short-circuiting nature of <code>Either</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">val</span> <span class="n">successful</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="mi">5</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">fail</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">fromEither</span><span class="o">(</span><span class="nc">Left</span><span class="o">(</span><span class="s">&#34;Nope&#34;</span><span class="o">))</span>
+<span class="k">val</span> <span class="n">neverReached</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">pure</span><span class="o">(</span><span class="mi">5</span><span class="o">)</span>
+
+<span class="k">val</span> <span class="n">myEitherT</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+  <span class="n">a</span> <span class="k">&lt;-</span> <span class="n">successful</span>
+  <span class="n">b</span> <span class="k">&lt;-</span> <span class="n">fail</span>
+  <span class="n">c</span> <span class="k">&lt;-</span> <span class="n">neverReached</span>
+<span class="o">}</span> <span class="k">yield</span> <span class="n">c</span>
+
+<span class="n">println</span><span class="o">(</span><span class="n">myEitherT</span><span class="o">.</span><span class="n">value</span><span class="o">)</span> <span class="c1">// Nope
+</span></code></pre></div><p>Try out the <code>EitherT</code> functions with different values and combinations, and see
+what you get!</p>
+<p>There&rsquo;s also a convenient function called <code>cond</code>, which is similar to an
+if-statement for <code>EitherT</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">asyncDivide</span><span class="o">(</span><span class="n">n</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">divisor</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">EitherT</span><span class="o">.</span><span class="n">cond</span><span class="o">(</span><span class="n">divisor</span> <span class="o">!=</span> <span class="mi">0</span><span class="o">,</span> <span class="n">n</span> <span class="o">/</span> <span class="n">divisor</span><span class="o">,</span> <span class="s">&#34;Cannot divide by zero&#34;</span><span class="o">)</span>
+
+<span class="n">asyncDivide</span><span class="o">(</span><span class="mi">5</span><span class="o">,</span> <span class="mi">0</span><span class="o">)</span> <span class="c1">// Cannot divide by zero
+</span><span class="c1"></span><span class="n">asyncDivide</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="mi">2</span><span class="o">)</span> <span class="c1">// Successful
+</span></code></pre></div><h1 id="reimplementing-registeraccount">Reimplementing <code>registerAccount</code></h1>
+<p>Now that we&rsquo;re armed with <code>EitherT</code>, let&rsquo;s reimplement <code>registerAccount</code> in a
+more elegant way. The goal is to make the logic more explicit by ordering each
+step sequentially. First, let&rsquo;s bring back the handy <code>Result</code> alias:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">type</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">A</span><span class="o">]</span> <span class="k">=</span> <span class="nc">EitherT</span><span class="o">[</span><span class="kt">Future</span>, <span class="kt">String</span>, <span class="kt">A</span><span class="o">]</span>
+</code></pre></div><p>Next, let&rsquo;s refactor the <code>validateAccount</code> logic. Since <code>Either</code> is already
+returned for each step, all we have to do is lift each <code>Either</code> with
+<code>EitherT.fromEither</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">validateAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">passwordInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">emailInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Account</span><span class="o">]</span> <span class="k">=</span>
+  <span class="k">for</span> <span class="o">{</span>
+    <span class="n">username</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">fromEither</span><span class="o">(</span><span class="n">validateUsername</span><span class="o">(</span><span class="n">usernameInput</span><span class="o">))</span>
+    <span class="n">password</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">fromEither</span><span class="o">(</span><span class="n">validatePassword</span><span class="o">(</span><span class="n">passwordInput</span><span class="o">))</span>
+    <span class="n">email</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">.</span><span class="n">fromEither</span><span class="o">(</span><span class="n">validateEmail</span><span class="o">(</span><span class="n">emailInput</span><span class="o">))</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="nc">Account</span><span class="o">(</span><span class="n">usernameInput</span><span class="o">,</span> <span class="n">passwordInput</span><span class="o">,</span> <span class="n">email</span><span class="o">)</span>
+</code></pre></div><p>The problematic part is testing for the existing account, since it causes the
+logic to branch off:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">findAccountWithEmail</span><span class="o">(</span><span class="n">email</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">Account</span><span class="o">]]</span> <span class="k">=</span> <span class="o">???</span>
+</code></pre></div><p>If the account already exists, it should return an error message and stop the
+registration immediately. Otherwise, it should continue with registration.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">testForExistingAccount</span><span class="o">(</span><span class="n">email</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Unit</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">EitherT</span><span class="o">(</span><span class="n">findAccountWithEmail</span><span class="o">(</span><span class="n">email</span><span class="o">)</span> <span class="n">map</span> <span class="o">{</span>
+      <span class="k">case</span> <span class="nc">Some</span><span class="o">(</span><span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="nc">Left</span><span class="o">(</span><span class="s">&#34;An account with this email already exists&#34;</span><span class="o">)</span>
+      <span class="k">case</span> <span class="nc">None</span> <span class="k">=&gt;</span> <span class="nc">Right</span><span class="o">(())</span>
+    <span class="o">})</span>
+</code></pre></div><p>Now, all that remains is to compose the steps in the <code>registerAccount</code> function.
+This should be trivial, since the types that we&rsquo;re dealing with are <code>Future</code>,
+<code>Either</code>, and <code>EitherT</code>, which can all be combined into <code>EitherT</code> in a single
+for-comprehension.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">registerAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">passwordInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">emailInput</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ErrorOr</span><span class="o">[</span><span class="kt">Account</span><span class="o">]]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">eitherT</span><span class="k">:</span> <span class="kt">Result</span><span class="o">[</span><span class="kt">Account</span><span class="o">]</span> <span class="k">=</span> <span class="k">for</span> <span class="o">{</span>
+    <span class="n">newAccount</span> <span class="k">&lt;-</span> <span class="n">validateAccount</span><span class="o">(</span><span class="n">usernameInput</span><span class="o">,</span> <span class="n">passwordInput</span><span class="o">,</span> <span class="n">emailInput</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="n">testForExistingAccount</span><span class="o">(</span><span class="n">emailInput</span><span class="o">)</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="n">insertAccountIntoDatabase</span><span class="o">(</span><span class="n">newAccount</span><span class="o">))</span>
+    <span class="k">_</span> <span class="k">&lt;-</span> <span class="nc">EitherT</span><span class="o">(</span><span class="n">sendWelcomeEmail</span><span class="o">(</span><span class="n">newAccount</span><span class="o">.</span><span class="n">email</span><span class="o">))</span>
+  <span class="o">}</span> <span class="k">yield</span> <span class="n">newAccount</span>
+
+  <span class="n">eitherT</span><span class="o">.</span><span class="n">value</span>
+<span class="o">}</span>
+</code></pre></div><p>This is pretty close to the ideal code, and it&rsquo;s very easy to understand!</p>
+<h1 id="conclusion">Conclusion</h1>
+<p>I&rsquo;ve shown that using <code>EitherT</code> can make error handling far more readable. Like
+I briefly mentioned above, <code>EitherT</code> works for effectful types such as
+<code>Option[Either[String, Int]]</code> or <code>IO[Either[String, Int]]</code>. Since these types
+can be quite general, it&rsquo;s easy to see that <code>EitherT</code> has a large variety of use
+cases, especially for short-circuiting steps. To find more examples on how to
+use <code>EitherT</code>, consult the <a href="https://typelevel.github.io/cats/datatypes/eithert.html"><code>EitherT</code> docs on the Cats
+website</a>.</p>
+<p>Sometimes, it might be desirable to use <code>EitherT</code> in situations involving
+parallel validation (e.g. validate all fields at the same time and return a list
+of all errors). In that case, with some effort, <code>Validated</code> (or <code>Validation</code>)
+can be used with <code>EitherT</code> to add parallel validation. Use <code>Either</code> for
+sequential validation and <code>Validated</code> for parallel validation for the best
+effects! See the <a href="http://typelevel.org/cats/datatypes/either.html"><code>Either</code></a>
+and <a href="http://typelevel.org/cats/datatypes/validated.html"><code>Validation</code></a> documentation for more information.</p>
+<p><strong>Update</strong>: Thanks to <a href="https://github.com/Technius/technius.github.io/pull/1">@Deliganli for fixing a mistake</a> in the
+<code>Reimplementing registerAccount</code> section. I also fixed another mistake and added
+a reference to the <code>EitherT</code> docs on the Cats website.</p>
+
+    </section>
+</article>
+
+        </main>
+        <footer class="footer">
+            Copyright (c) 2016-2022 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.
+        </footer>
+    </body>
+</html>

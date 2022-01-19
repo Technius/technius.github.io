@@ -1,32 +1,28 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Scala on Bryan Tan&#39;s Blog</title>
+    <title>scala on Bryan Tan&#39;s Website</title>
     <link>https://technius.net/tags/scala/</link>
-    <description>Recent content in Scala on Bryan Tan&#39;s Blog</description>
+    <description>Recent content in scala on Bryan Tan&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <copyright>Copyright (c) 2016-2018 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
-    <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate>
-    
-	<atom:link href="https://technius.net/tags/scala/index.xml" rel="self" type="application/rss+xml" />
-    
-    
+    <copyright>Copyright (c) 2016-2022 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
+    <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate><atom:link href="https://technius.net/tags/scala/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Cleaner Error Handling in Scala with Cats EitherT</title>
-      <link>https://technius.net/post/eithert-error-handling/</link>
+      <link>https://technius.net/posts/eithert-error-handling/</link>
       <pubDate>Tue, 09 May 2017 22:04:06 -0700</pubDate>
       
-      <guid>https://technius.net/post/eithert-error-handling/</guid>
+      <guid>https://technius.net/posts/eithert-error-handling/</guid>
       <description>Introduction In Scala, it&amp;rsquo;s a common practice to handle errors or perform validation using Option or Either. For example, a form on a website may be validated on a server by using a series of Eithers, which will return the valid model data or a message explaining the problems in the form submission. However, adding more complicated concerns into the Either sequence, such as Options or Futures, requires a lot of boilerplate.</description>
     </item>
     
     <item>
       <title>Improving Akka HTTP REST API Response Handling with Marshallers</title>
-      <link>https://technius.net/post/akka-http-api-response-marshalling/</link>
+      <link>https://technius.net/posts/akka-http-api-response-marshalling/</link>
       <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
       
-      <guid>https://technius.net/post/akka-http-api-response-marshalling/</guid>
+      <guid>https://technius.net/posts/akka-http-api-response-marshalling/</guid>
       <description>I&amp;rsquo;ve been trying out akka-http for a while now, and I found it to be great for making REST APIs. However, it is complicated to use and can lead to a massive amount of boilerplate if its features aren&amp;rsquo;t taken advantage of completely. In this article, I&amp;rsquo;m going to to take a look at one feature of Akka HTTP that I explored recently: marshallers.
 Motivation To demonstrate how status codes are usually returned in Akka HTTP, let&amp;rsquo;s consider a simple example of a REST API: an online notepad.</description>
     </item>

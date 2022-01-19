@@ -1,0 +1,361 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>  Bryan Tan&#39;s Website &ndash; Improving Akka HTTP REST API Response Handling with Marshallers  </title>
+        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/base-min.css">
+        <link rel="stylesheet" href="https://unpkg.com/purecss@1.0.0/build/pure-min.css" integrity="sha384-nn4HPE8lTHyVtfCBi5yW9d20FjT8BJwUXyWZT9InLYax14RDjBj46LmSztkmNP9w" crossorigin="anonymous">
+        <link rel="stylesheet" href="/css/style.css" />
+        <link rel="stylesheet" href="/css/highlight.css" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta charset="utf-8" />
+    </head>
+    <body>
+        <header class="site-header pure-menu pure-menu-horizontal">
+            <a href="/" class="pure-menu-heading pure-menu-link">Bryan Tan&#39;s Website</a>
+            <div class="site-header-menu-container">
+                <input type="checkbox" id="site-header-menu-button" />
+                <label id="site-header-menu-label" class="pure-menu-link"
+                       for="site-header-menu-button">Menu</label>
+                <ul id="site-header-menu" class="pure-menu-list">
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/">Home</a>
+                    </li>
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/projects/">Projects</a>
+                    </li>
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/research/">Research</a>
+                    </li>
+                    
+                    <li class="pure-menu-item">
+                        <a class="pure-menu-link" href="/posts/">Blog</a>
+                    </li>
+                    
+                </ul>
+            </div>
+        </header>
+        <main id="main-content">
+            
+<article class="prose-center prose-width">
+    <header class="article-header">
+        <h1>Improving Akka HTTP REST API Response Handling with Marshallers </h1>
+        <span class="article-header-postinfo">
+            <time datetime="2017-03-24">Mar 24, 2017</time>
+        </span>
+    </header>
+    <section>
+        <p>I&rsquo;ve been trying out <a href="http://doc.akka.io/docs/akka-http/current/scala/http/introduction.html">akka-http</a> for a while now, and I found it to
+be great for making REST APIs. However, it is complicated to use and can lead to
+a massive amount of boilerplate if its features aren&rsquo;t taken advantage of
+completely. In this article, I&rsquo;m going to to take a look at one feature of Akka
+HTTP that I explored recently: marshallers.</p>
+<h2 id="motivation">Motivation</h2>
+<p>To demonstrate how status codes are usually returned in Akka HTTP, let&rsquo;s
+consider a simple example of a REST API: an online notepad. Each note should
+have a title and content. The API should have basic CRUD endpoints:</p>
+<ul>
+<li><code>GET /notes</code> retrieves all notes.</li>
+<li><code>POST /notes?title=Foo&amp;content=bar</code> creates a new note titled &ldquo;&rdquo;, storing
+&ldquo;bar&rdquo; as its content. The status code is <code>201 Created</code>.</li>
+<li><code>GET /notes/123</code> retrieves the note with id 123, if it exists.</li>
+<li><code>POST /notes/123?title=Foo2&amp;content=bar2</code> updates the note with id 123, if
+it exists. If neither title nor content are supplied, return
+<code>304 Not Modified</code>.</li>
+<li><code>DELETE /notes/123</code> deletes the note with id 123, if it exists.</li>
+</ul>
+<p>Let&rsquo;s begin by modeling each note:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">case</span> <span class="k">class</span> <span class="nc">Note</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">title</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">content</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span>
+</code></pre></div><p>Then, let&rsquo;s define an interface which will handle how the <code>Notes</code> are stored:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">trait</span> <span class="nc">NoteRepository</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">list</span><span class="o">()</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Seq</span><span class="o">[</span><span class="kt">Note</span><span class="o">]]</span>
+  <span class="k">def</span> <span class="n">find</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">Note</span><span class="o">]]</span>
+  <span class="k">def</span> <span class="n">create</span><span class="o">(</span><span class="n">title</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">content</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Note</span><span class="o">]</span>
+  <span class="k">def</span> <span class="n">update</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">title</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">],</span> <span class="n">content</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">Note</span><span class="o">]]</span>
+  <span class="k">def</span> <span class="n">delete</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">Option</span><span class="o">[</span><span class="kt">Note</span><span class="o">]]</span>
+<span class="o">}</span>
+</code></pre></div><p>Before we move on to writing the routes, let&rsquo;s write an intermediate layer that
+will help translate the results into a standard, easy-to-serialize format. In
+most cases, that format would be an algebraic data type:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="cm">/* Represents the response to an API call */</span>
+<span class="k">sealed</span> <span class="k">trait</span> <span class="nc">ApiResult</span>
+<span class="k">object</span> <span class="nc">ApiResult</span> <span class="o">{</span>
+  <span class="cm">/* Returns notes found */</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">FoundNote</span><span class="o">(</span><span class="n">note</span><span class="k">:</span> <span class="kt">Note</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">ApiResult</span>
+  
+  <span class="cm">/* Indicates when a specified note cannot be found */</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">NoteNotFound</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">ApiResult</span>
+  
+  <span class="cm">/* Indicates when a note is successfully created */</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">CreatedNote</span><span class="o">(</span><span class="n">note</span><span class="k">:</span> <span class="kt">Note</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">ApiResult</span>
+ 
+  <span class="cm">/* Indicates when a note is successfully updated */</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">UpdatedNote</span><span class="o">(</span><span class="n">updatedNote</span><span class="k">:</span> <span class="kt">Note</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">ApiResult</span>
+ 
+  <span class="cm">/* Indicates when a note is sucessfully deleted. */</span>
+  <span class="k">case</span> <span class="k">class</span> <span class="nc">DeletedNote</span><span class="o">(</span><span class="n">deletedNote</span><span class="k">:</span> <span class="kt">Note</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">ApiResult</span>
+<span class="o">}</span>
+
+<span class="k">trait</span> <span class="nc">NoteService</span> <span class="o">{</span>
+  <span class="k">import</span> <span class="nn">ApiResult._</span>
+
+  <span class="k">def</span> <span class="n">repo</span><span class="k">:</span> <span class="kt">NoteRepository</span>
+
+  <span class="k">def</span> <span class="n">find</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">find</span><span class="o">(</span><span class="n">id</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="n">noteOp</span><span class="o">(</span><span class="n">id</span><span class="o">)(</span><span class="nc">FoundNote</span><span class="o">.</span><span class="n">apply</span> <span class="k">_</span><span class="o">))</span>
+
+  <span class="k">def</span> <span class="n">create</span><span class="o">(</span><span class="n">title</span><span class="k">:</span> <span class="kt">String</span><span class="o">,</span> <span class="n">content</span><span class="k">:</span> <span class="kt">String</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">create</span><span class="o">(</span><span class="n">title</span><span class="o">,</span> <span class="n">content</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="nc">CreatedNote</span><span class="o">.</span><span class="n">apply</span> <span class="k">_</span><span class="o">)</span>
+
+  <span class="k">def</span> <span class="n">update</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">title</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">],</span> <span class="n">content</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[</span><span class="kt">String</span><span class="o">])</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">title</span><span class="o">,</span> <span class="n">content</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="n">noteOp</span><span class="o">(</span><span class="n">id</span><span class="o">)(</span><span class="nc">UpdatedNote</span><span class="o">.</span><span class="n">apply</span> <span class="k">_</span><span class="o">))</span>
+
+  <span class="k">def</span> <span class="n">delete</span><span class="o">(</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Future</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">]</span> <span class="k">=</span>
+    <span class="n">repo</span><span class="o">.</span><span class="n">delete</span><span class="o">(</span><span class="n">id</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="n">noteOp</span><span class="o">(</span><span class="n">id</span><span class="o">)(</span><span class="nc">DeletedNote</span><span class="o">.</span><span class="n">apply</span> <span class="k">_</span><span class="o">))</span>
+
+  <span class="cm">/*
+</span><span class="cm">   * Helper for returning NoteNotFound if an Option is None, or passing the
+</span><span class="cm">   * found note to f otherwise.
+</span><span class="cm">   */</span>
+  <span class="k">private</span> <span class="k">def</span> <span class="n">noteOp</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">id</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)(</span><span class="n">f</span><span class="k">:</span> <span class="kt">Note</span> <span class="o">=&gt;</span> <span class="nc">ApiResult</span><span class="o">)</span><span class="k">:</span> <span class="kt">Option</span><span class="o">[</span><span class="kt">Note</span><span class="o">]</span> <span class="k">=&gt;</span> <span class="nc">ApiResult</span> <span class="k">=</span>
+    <span class="n">opt</span> <span class="k">=&gt;</span> <span class="n">opt</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">f</span><span class="o">).</span><span class="n">getOrElse</span><span class="o">(</span><span class="nc">NoteNotFound</span><span class="o">(</span><span class="n">id</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div><p>Finally, we can define our routes. The most straightforward approach is to call
+a serialization function wherever <code>ApiResult</code> is returned. For simplicity, I
+used the excellent <a href="http://www.lihaoyi.com/upickle-pprint/upickle/">upickle</a>
+library to serialize each <code>ApiResult</code> as JSON.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">import</span> <span class="nn">akka.http.scaladsl.server._</span>
+<span class="k">import</span> <span class="nn">akka.http.scaladsl.server.Directives._</span>
+<span class="k">import</span> <span class="nn">upickle.default._</span>
+<span class="k">trait</span> <span class="nc">Routes</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">noteService</span><span class="k">:</span> <span class="kt">NoteService</span>
+  
+  <span class="k">val</span> <span class="n">notesRoute</span> <span class="k">=</span>
+    <span class="n">pathPrefix</span><span class="o">(</span><span class="s">&#34;notes&#34;</span><span class="o">)</span> <span class="o">{</span>
+      <span class="c1">// -&gt; /notes/id
+</span><span class="c1"></span>      <span class="o">(</span><span class="n">path</span><span class="o">(</span><span class="nc">IntNumber</span><span class="o">))</span> <span class="o">{</span> <span class="n">id</span> <span class="k">=&gt;</span>
+        <span class="n">get</span> <span class="o">{</span>
+          <span class="n">complete</span> <span class="o">{</span>
+            <span class="n">noteService</span><span class="o">.</span><span class="n">find</span><span class="o">(</span><span class="n">id</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="n">write</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+          <span class="o">}</span>
+        <span class="o">}</span> <span class="o">~</span>
+        <span class="n">delete</span> <span class="o">{</span>
+          <span class="n">complete</span> <span class="o">{</span>
+            <span class="n">noteService</span><span class="o">.</span><span class="n">delete</span><span class="o">(</span><span class="n">id</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="n">write</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+          <span class="o">}</span>
+        <span class="o">}</span> <span class="o">~</span>
+        <span class="o">(</span><span class="n">post</span> <span class="o">&amp;</span> <span class="n">parameters</span><span class="o">(</span>&#39;title<span class="o">.?,</span> &#39;content<span class="o">.?))</span> <span class="o">{</span> <span class="o">(</span><span class="n">title</span><span class="o">,</span> <span class="n">content</span><span class="o">)</span> <span class="k">=&gt;</span>
+          <span class="n">complete</span> <span class="o">{</span>
+            <span class="n">noteService</span><span class="o">.</span><span class="n">update</span><span class="o">(</span><span class="n">id</span><span class="o">,</span> <span class="n">title</span><span class="o">,</span> <span class="n">content</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="n">write</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+          <span class="o">}</span>
+        <span class="o">}</span>
+      <span class="o">}</span> <span class="o">~</span>
+      <span class="c1">// -&gt; /notes
+</span><span class="c1"></span>      <span class="n">pathEndOrSingleSlash</span> <span class="o">{</span>
+        <span class="n">get</span> <span class="o">{</span>
+          <span class="n">complete</span> <span class="o">{</span>
+            <span class="n">noteService</span><span class="o">.</span><span class="n">list</span><span class="o">.</span><span class="n">map</span><span class="o">(</span><span class="n">write</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+          <span class="o">}</span>
+        <span class="o">}</span> <span class="o">~</span>
+        <span class="o">(</span><span class="n">post</span> <span class="o">&amp;</span> <span class="n">parameters</span><span class="o">(</span>&#39;title<span class="o">,</span> &#39;content<span class="o">))</span> <span class="o">{</span> <span class="o">(</span><span class="n">title</span><span class="o">,</span> <span class="n">content</span><span class="o">)</span> <span class="k">=&gt;</span>
+          <span class="n">complete</span> <span class="o">{</span>
+            <span class="n">noteService</span><span class="o">.</span><span class="n">create</span><span class="o">(</span><span class="n">title</span><span class="o">,</span> <span class="n">content</span><span class="o">).</span><span class="n">map</span><span class="o">(</span><span class="n">write</span><span class="o">(</span><span class="k">_</span><span class="o">))</span>
+          <span class="o">}</span>
+        <span class="o">}</span>
+      <span class="o">}</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div><p>To try it out, you&rsquo;ll need an implementation of <code>NoteRepository</code>. I&rsquo;ve written a
+complete, naive example in this <a href="https://gist.github.com/Technius/4fddfc9e33b6c2fff13cbea5e4c67d53">gist</a> (Warning: do <em>not</em> use this
+code in production!). If we run a few queries on the server, we&rsquo;ll get the
+expected results:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-shell" data-lang="shell">$ curl <span class="s1">&#39;http://localhost:1234/notes&#39;</span> -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.ListNotes&#34;</span>,<span class="s2">&#34;notes&#34;</span>:<span class="o">[]}</span>
+
+$ curl <span class="s1">&#39;http://localhost:1234/notes?title=test&amp;content=Hi&#39;</span> -XPOST -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.CreatedNote&#34;</span>,<span class="s2">&#34;note&#34;</span>:<span class="o">{</span><span class="s2">&#34;id&#34;</span>:1,<span class="s2">&#34;title&#34;</span>:<span class="s2">&#34;test&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Hi&#34;</span><span class="o">}}</span>
+
+$ curl <span class="s1">&#39;http://localhost:1234/notes/1&#39;</span> -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.FoundNote&#34;</span>,<span class="s2">&#34;note&#34;</span>:<span class="o">{</span><span class="s2">&#34;id&#34;</span>:1,<span class="s2">&#34;title&#34;</span>:<span class="s2">&#34;test&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Hi&#34;</span><span class="o">}}</span>
+
+$ curl <span class="s1">&#39;http://localhost:1234/notes/1?title=Test&amp;content=Hello&#39;</span> -XPOST -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.UpdatedNote&#34;</span>,<span class="s2">&#34;updatedNote&#34;</span>:<span class="o">{</span><span class="s2">&#34;id&#34;</span>:1,<span class="s2">&#34;title&#34;</span>:<span class="s2">&#34;Test&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Hello&#34;</span><span class="o">}}</span>
+
+$ curl <span class="s1">&#39;http://localhost:1234/notes?title=Post2&amp;content=Content&#39;</span> -XPOST -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.CreatedNote&#34;</span>,<span class="s2">&#34;note&#34;</span>:<span class="o">{</span><span class="s2">&#34;id&#34;</span>:2,<span class="s2">&#34;title&#34;</span>:<span class="s2">&#34;Post2&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Content&#34;</span><span class="o">}}</span>
+
+$ curl <span class="s1">&#39;http://localhost:1234/notes&#39;</span> -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.ListNotes&#34;</span>,<span class="s2">&#34;notes&#34;</span>:<span class="o">[{</span><span class="s2">&#34;id&#34;</span>:1,<span class="s2">&#34;title&#34;</span>:<span class="s2">&#34;Test&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Hello&#34;</span><span class="o">}</span>,<span class="o">{</span><span class="s2">&#34;id&#34;</span>:2,<span class="s2">&#34;title
+</span><span class="s2">&#34;</span>:<span class="s2">&#34;Post2&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Content&#34;</span><span class="o">}]}</span>
+
+$ curl <span class="s1">&#39;http://localhost:1234/notes/1&#39;</span> -XDELETE -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.DeletedNote&#34;</span>,<span class="s2">&#34;deletedNote&#34;</span>:<span class="o">{</span><span class="s2">&#34;id&#34;</span>:1,<span class="s2">&#34;title&#34;</span>:<span class="s2">&#34;Test&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Hello&#34;</span><span class="o">}}</span>
+
+$ curl <span class="s1">&#39;http://localhost:1234/notes&#39;</span> -w <span class="s1">&#39;\n\n&#39;</span>
+<span class="o">{</span><span class="s2">&#34;</span><span class="nv">$type</span><span class="s2">&#34;</span>:<span class="s2">&#34;example.ApiResult.ListNotes&#34;</span>,<span class="s2">&#34;notes&#34;</span>:<span class="o">[{</span><span class="s2">&#34;id&#34;</span>:2,<span class="s2">&#34;title&#34;</span>:<span class="s2">&#34;Post2&#34;</span>,<span class="s2">&#34;content&#34;</span>:<span class="s2">&#34;Content&#34;</span><span class="o">}]}</span>
+</code></pre></div><p>However, if you took a close look at the code, you&rsquo;ll notice multiple problems:</p>
+<ul>
+<li>I didn&rsquo;t implement status codes because it wouldn&rsquo;t be very easy to. For
+example, if I wanted to add status codes on the <code>GET</code> route, I&rsquo;d have to pattern
+match on the <code>ApiResult</code> inside of the <code>Future</code> and select the correct status
+code.</li>
+<li>The content type isn&rsquo;t <code>application/json</code>. It&rsquo;s just plain text (test it in your
+browser!</li>
+<li>It&rsquo;s tedious and boring to extend. For example, if I wanted to add status codes
+for all routes, I&rsquo;d have to pattern match in each route!</li>
+<li>It will be easy to introduce bugs: during a refactor, someone could
+accidentally cause a <code>Created</code> status code to be returned along with an
+<code>ApiResult.DeletedNote</code>!</li>
+<li>We have to call <code>write</code> on each route. This code duplication is a clear sign
+that we can increase abstraction.</li>
+<li>It involves far too much boilerplate for such a simple API.</li>
+</ul>
+<h2 id="building-marshallers">Building marshallers</h2>
+<p>A core part of Akka HTTP is its <a href="http://doc.akka.io/docs/akka-http/current/scala/http/common/marshalling.html">marshalling API</a>. Marshallers
+describe how data is transformed, such as when an incoming HTTP request is
+deserialized into, say, an int, or when an entity model is serialized into an
+HTTP response. They are automatically resolved through implicit scoping and help
+convert data returned in <code>complete</code> directives into HTTP responses. This is
+perfect for the above situation: a marshaller can be used not only ensure the
+proper status code and content type is returned, but it can also be used to
+handle serialization, and thus, remove boilerplate.</p>
+<p>Let&rsquo;s take a look at the type signature of <code>Marshaller</code>:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="c1">// From the ScalaDoc
+</span><span class="c1"></span><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">Marshaller</span><span class="o">[</span><span class="kt">-A</span>, <span class="kt">+B</span><span class="o">]</span> <span class="nc">extends</span> <span class="nc">AnyRef</span>
+</code></pre></div><p>A <code>Marshaller[A, B]</code> serializes <code>A</code> into <code>B</code>. The docs recommend composing new
+marshallers using existing ones, an approach we&rsquo;ll take to create a marshaller
+for <code>ApiResult</code>. <code>Marshaller</code> provides methods such as <code>map</code> and <code>compose</code>,
+which can transform the output or the input, respectively. We&rsquo;re going to focus
+on the <code>compose</code> method:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="c1">// From the ScalaDoc
+</span><span class="c1">// Given a Marshaller[A, B]:
+</span><span class="c1"></span><span class="k">def</span> <span class="n">compose</span><span class="o">[</span><span class="kt">C</span><span class="o">](</span><span class="n">f</span><span class="k">:</span> <span class="o">(</span><span class="kt">C</span><span class="o">)</span> <span class="o">⇒</span> <span class="n">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">Marshaller</span><span class="o">[</span><span class="kt">C</span>, <span class="kt">B</span><span class="o">]</span> 
+</code></pre></div><p>Based on the types, if <code>compose</code> is called on a <code>Marshaller[A, B]</code> with a
+function that converts <code>C</code> to <code>A</code>, then the result is a <code>Marshaller[C, B]</code>. In
+other words, <code>compose</code> creates a new marshaller that accepts <code>C</code>, transforms it
+to <code>A</code> with <code>f</code>, and then passes it to the original marshaller <code>m</code>, which then
+converts <code>A</code> to <code>B</code>.</p>
+<p>We should be able to serialize an <code>ApiResult</code> with <code>compose</code>. If you read the
+documentation, you&rsquo;ll see that a <code>ToEntityMarshaller[A]</code>, which is a
+<code>Marshaller[A,MessageEntity]</code>, is used to generate the body of an HTTP request.
+That means that we want a call <code>compose</code> on some marshaller to get a
+<code>ToEntityMarshaller[ApiResult]</code>. In the earlier code, <code>ApiResult</code> was serialized
+into a <code>String</code> using <code>write[ApiResult]</code>. This gives us a clue: if we convert
+<code>ApiResult</code> into a <code>String</code> first, we&rsquo;ll have our marshaller. Conveniently, Akka
+HTTP provides <code>Marshaller.StringMarshaller</code>, so we&rsquo;ll just call the <code>compose</code>
+method on it:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">import</span> <span class="nn">akka.http.scaladsl.model._</span>
+<span class="k">import</span> <span class="nn">akka.http.scaladsl.marshalling._</span>
+<span class="cm">/**
+</span><span class="cm">  * Mix in to provide marshalling capabilities for `ApiResult`.
+</span><span class="cm">  */</span>
+<span class="k">trait</span> <span class="nc">ApiMarshalling</span> <span class="o">{</span>
+  <span class="cm">/* 
+</span><span class="cm">   * Marshaller that serializes an ApiResult into JSON and ensures that it has
+</span><span class="cm">   * a content type of application/json
+</span><span class="cm">   */</span>
+  <span class="k">def</span> <span class="n">apiResultTEM</span><span class="k">:</span> <span class="kt">ToEntityMarshaller</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">Marshaller</span><span class="o">.</span><span class="nc">StringMarshaller</span><span class="o">.</span><span class="n">compose</span><span class="o">(</span><span class="n">r</span> <span class="k">=&gt;</span> <span class="n">write</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">](</span><span class="n">r</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div><p>Though this marshaller works, we could improve it by also specifying the content
+typ, since the marshaller is used to create the message body. The <code>wrap</code> method,
+which is basically the same thing as <code>compose</code> with an additional content type
+parameter, allows us to do that:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="c1">// From the ScalaDoc
+</span><span class="c1">// Given a Marshaller[A, B]:
+</span><span class="c1"></span><span class="k">def</span> <span class="n">wrap</span><span class="o">[</span><span class="kt">C</span>, <span class="kt">D</span> <span class="k">&gt;:</span> <span class="kt">B</span><span class="o">](</span><span class="n">newMediaType</span><span class="k">:</span> <span class="kt">MediaType</span><span class="o">)(</span><span class="n">f</span><span class="k">:</span> <span class="o">(</span><span class="kt">C</span><span class="o">)</span> <span class="o">⇒</span> <span class="n">A</span><span class="o">)(</span><span class="k">implicit</span> <span class="n">mto</span><span class="k">:</span> <span class="kt">ContentTypeOverrider</span><span class="o">[</span><span class="kt">D</span><span class="o">])</span><span class="k">:</span> <span class="kt">Marshaller</span><span class="o">[</span><span class="kt">C</span>, <span class="kt">D</span><span class="o">]</span>
+</code></pre></div><p>Using <code>wrap</code> instead of <code>compose</code> is a simple change away:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">def</span> <span class="n">apiResultTEM</span><span class="k">:</span> <span class="kt">ToEntityMarshaller</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">]</span> <span class="k">=</span>
+  <span class="nc">Marshaller</span><span class="o">.</span><span class="nc">StringMarshaller</span><span class="o">.</span><span class="n">wrap</span><span class="o">(</span><span class="nc">MediaTypes</span><span class="o">.</span><span class="n">`application/json`</span><span class="o">)(</span><span class="n">r</span> <span class="k">=&gt;</span> <span class="n">write</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">](</span><span class="n">r</span><span class="o">))</span>
+<span class="o">}</span>
+</code></pre></div><p>We could make <code>apiResponseTEM</code> implicit, but we&rsquo;re not done yet: we still need
+to ensure the proper status code is returned. To do so, we need to write a
+<code>ToResponseMarshaller[ApiResult]</code>, which is a
+<code>Marshaller[ApiResult,HttpResponse]</code>. The approach is the same: find an existing
+marshaller and use one of its composition methods. First, we need to figure out
+which status code should be returned given an <code>ApiResult</code>, so let&rsquo;s write a
+helper method.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">import</span> <span class="nn">ApiResult._</span>
+<span class="k">def</span> <span class="n">getResponseCode</span><span class="o">(</span><span class="n">result</span><span class="k">:</span> <span class="kt">ApiResult</span><span class="o">)</span><span class="k">:</span> <span class="kt">StatusCode</span> <span class="o">=</span> <span class="n">result</span> <span class="k">match</span> <span class="o">{</span>
+  <span class="k">case</span> <span class="k">_:</span> <span class="kt">ListNotes</span> <span class="o">=&gt;</span> <span class="nc">StatusCodes</span><span class="o">.</span><span class="nc">OK</span>
+  <span class="k">case</span> <span class="k">_:</span> <span class="kt">FoundNote</span> <span class="o">=&gt;</span> <span class="nc">StatusCodes</span><span class="o">.</span><span class="nc">OK</span>
+  <span class="k">case</span> <span class="k">_:</span> <span class="kt">NoteNotFound</span> <span class="o">=&gt;</span> <span class="nc">StatusCodes</span><span class="o">.</span><span class="nc">NotFound</span>
+  <span class="k">case</span> <span class="k">_:</span> <span class="kt">CreatedNote</span> <span class="o">=&gt;</span> <span class="nc">StatusCodes</span><span class="o">.</span><span class="nc">Created</span>
+  <span class="c1">// To return a 304 Not Modified, UpdatedNote and the associated logic needs to
+</span><span class="c1"></span>  <span class="c1">// be changed so that it can capture the possibility that no changes were made.
+</span><span class="c1"></span>  <span class="c1">// Try it as an exercise!
+</span><span class="c1"></span>  <span class="k">case</span> <span class="k">_:</span> <span class="kt">UpdatedNote</span> <span class="o">=&gt;</span> <span class="nc">StatusCodes</span><span class="o">.</span><span class="nc">OK</span>
+  <span class="k">case</span> <span class="k">_:</span> <span class="kt">DeletedNote</span> <span class="o">=&gt;</span> <span class="nc">StatusCodes</span><span class="o">.</span><span class="nc">OK</span>
+<span class="o">}</span>
+</code></pre></div><p>Then, we use another predefined marshaller to construct the
+<code>ToResponseMarshaller[ApiResult]</code> that will convert each <code>ApiResult</code> into a
+<code>Response</code>.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="cm">/*
+</span><span class="cm"> * Marshaller that converts an ApiResult into an HttpResponse
+</span><span class="cm"> */</span>
+<span class="k">implicit</span> <span class="k">def</span> <span class="n">apiResultTRM</span><span class="k">:</span> <span class="kt">ToResponseMarshaller</span><span class="o">[</span><span class="kt">ApiResult</span><span class="o">]</span> <span class="k">=</span>
+    <span class="nc">Marshaller</span>
+      <span class="o">.</span><span class="n">fromStatusCodeAndHeadersAndValue</span><span class="o">(</span><span class="n">apiResultTEM</span><span class="o">)</span>
+      <span class="o">.</span><span class="n">compose</span><span class="o">(</span><span class="n">apiResult</span> <span class="k">=&gt;</span> <span class="o">(</span><span class="n">getResponseCode</span><span class="o">(</span><span class="n">apiResult</span><span class="o">),</span> <span class="nc">List</span><span class="o">.</span><span class="n">empty</span><span class="o">,</span> <span class="n">apiResult</span><span class="o">))</span>
+</code></pre></div><p>The <code>Marshaller.fromStatusCodeAndHeadersAndValue</code> used above returns a
+marshaller that can construct an <code>HttpResponse</code>. The method has the following
+signature:</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="c1">// From the ScalaDoc
+</span><span class="c1"></span><span class="k">implicit</span> <span class="k">def</span> <span class="n">fromStatusCodeAndHeadersAndValue</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="k">implicit</span> <span class="n">mt</span><span class="k">:</span> <span class="kt">ToEntityMarshaller</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span><span class="k">:</span> <span class="kt">TRM</span><span class="o">[(</span><span class="kt">StatusCode</span>, <span class="kt">Seq</span><span class="o">[</span><span class="kt">HttpHeader</span><span class="o">]</span>, <span class="kt">T</span><span class="o">)]</span> 
+</code></pre></div><p><code>compose</code> is used to ensure that the status code is included in the
+response.</p>
+<h2 id="putting-it-all-together">Putting it all together</h2>
+<p>Finally, let&rsquo;s mix in the <code>ApiMarshalling</code> trait.</p>
+<div class="highlight"><pre tabindex="0" class="chroma"><code class="language-scala" data-lang="scala"><span class="k">trait</span> <span class="nc">Routes</span> <span class="k">extends</span> <span class="nc">ApiMarshalling</span> <span class="o">{</span>
+  <span class="k">def</span> <span class="n">noteService</span><span class="k">:</span> <span class="kt">NoteService</span>
+  
+  <span class="k">val</span> <span class="n">notesRoute</span> <span class="k">=</span>
+    <span class="n">pathPrefix</span><span class="o">(</span><span class="s">&#34;notes&#34;</span><span class="o">)</span> <span class="o">{</span>
+      <span class="n">path</span><span class="o">(</span><span class="nc">IntNumber</span><span class="o">)</span> <span class="o">{</span> <span class="n">id</span> <span class="k">=&gt;</span>
+        <span class="n">get</span> <span class="o">{</span>
+          <span class="n">complete</span> <span class="o">{</span>
+            <span class="n">noteService</span><span class="o">.</span><span class="n">find</span><span class="o">(</span><span class="n">id</span><span class="o">)</span>
+          <span class="o">}</span>
+        <span class="o">}</span>
+        <span class="c1">// ...
+</span><span class="c1"></span>      <span class="o">}</span>
+    <span class="o">}</span>
+    <span class="c1">// Rest omitted because it&#39;s mostly the same
+</span><span class="c1"></span><span class="o">}</span>
+</code></pre></div><p>Notice the differnce between the original code and the code using the
+marshaller:</p>
+<ul>
+<li><code>ApiResult</code> is automatically serialized, so we don&rsquo;t have to call <code>write</code>
+anymore. Plus, Akka HTTP has implicit functions to derive
+<code>ToResponseMarshaller[Future[A]]</code> from a <code>ToResponseMarshaller[A]</code>, so we can
+just leave each call as a <code>Future[ApiResult]</code>.</li>
+<li>The status code is correctly included in the response.</li>
+<li>The content type is <code>application/json</code>.</li>
+<li>When a new <code>ApiResult</code> is added, the only status code or serialization logic
+that needs to be implemented is a case in <code>getResponseCode</code>. In addition, the
+compiler will even issue a warning as a reminder!</li>
+</ul>
+<h2 id="conclusion">Conclusion</h2>
+<p>While the example shown in this article is relatively simple, it&rsquo;s easy to see
+how marshallers can be used to reduce boilerplate and unify logic. They&rsquo;re also
+extensible: if you wanted to implement XML serialization, all you&rsquo;d have to do
+is create a <code>ToEntityMarshaller[ApiResult]</code> for XML, refactor <code>apiResultTEM</code> to
+accept <code>apiResultTEM</code> as a parameter, and pass the XML marshaller to
+<code>apiResultTEM</code>. One marshaller that I found very useful to have, in particular,
+is a marshaller for a <code>Task</code> monad. It makes libraries such as <code>fs2</code> or <code>doobie</code>
+interop very well with Akka HTTP. Anyways, if you&rsquo;d like to learn more about
+marshallers, check out the <a href="http://doc.akka.io/docs/akka-http/current/scala/http/common/marshalling.html">documentation</a>. There are many more
+ways to use marshallers than I have presented in this article, such as streaming
+or chunking responses.</p>
+
+    </section>
+</article>
+
+        </main>
+        <footer class="footer">
+            Copyright (c) 2016-2022 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.
+        </footer>
+    </body>
+</html>

@@ -1,64 +1,50 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Bryan Tan&#39;s Blog</title>
+    <title>Home on Bryan Tan&#39;s Website</title>
     <link>https://technius.net/</link>
-    <description>Recent content on Bryan Tan&#39;s Blog</description>
+    <description>Recent content in Home on Bryan Tan&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <copyright>Copyright (c) 2016-2018 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
-    <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate>
-    
-	<atom:link href="https://technius.net/index.xml" rel="self" type="application/rss+xml" />
-    
-    
+    <copyright>Copyright (c) 2016-2022 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
+    <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate><atom:link href="https://technius.net/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Cleaner Error Handling in Scala with Cats EitherT</title>
-      <link>https://technius.net/post/eithert-error-handling/</link>
+      <link>https://technius.net/posts/eithert-error-handling/</link>
       <pubDate>Tue, 09 May 2017 22:04:06 -0700</pubDate>
       
-      <guid>https://technius.net/post/eithert-error-handling/</guid>
+      <guid>https://technius.net/posts/eithert-error-handling/</guid>
       <description>Introduction In Scala, it&amp;rsquo;s a common practice to handle errors or perform validation using Option or Either. For example, a form on a website may be validated on a server by using a series of Eithers, which will return the valid model data or a message explaining the problems in the form submission. However, adding more complicated concerns into the Either sequence, such as Options or Futures, requires a lot of boilerplate.</description>
     </item>
     
     <item>
       <title>Improving Akka HTTP REST API Response Handling with Marshallers</title>
-      <link>https://technius.net/post/akka-http-api-response-marshalling/</link>
+      <link>https://technius.net/posts/akka-http-api-response-marshalling/</link>
       <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
       
-      <guid>https://technius.net/post/akka-http-api-response-marshalling/</guid>
+      <guid>https://technius.net/posts/akka-http-api-response-marshalling/</guid>
       <description>I&amp;rsquo;ve been trying out akka-http for a while now, and I found it to be great for making REST APIs. However, it is complicated to use and can lead to a massive amount of boilerplate if its features aren&amp;rsquo;t taken advantage of completely. In this article, I&amp;rsquo;m going to to take a look at one feature of Akka HTTP that I explored recently: marshallers.
 Motivation To demonstrate how status codes are usually returned in Akka HTTP, let&amp;rsquo;s consider a simple example of a REST API: an online notepad.</description>
     </item>
     
     <item>
-      <title>Creating a Calculator in Rust, Part 1</title>
-      <link>https://technius.net/post/rust-calculator-1/</link>
-      <pubDate>Fri, 13 Jan 2017 00:00:00 +0000</pubDate>
+      <title>Projects</title>
+      <link>https://technius.net/projects/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>https://technius.net/post/rust-calculator-1/</guid>
-      <description>As an exercise to learn more about Rust, I decided to write a calculator program. It&amp;rsquo;s able to evaluate arbitrary numerical expressions (i.e. 2 * 3^5 / 3), as well as simple algebraic expressions (i.e. 3x + 5x). These articles will document some of the hurdles that I ran into, as well as the solutions that I came up with. Well, let&amp;rsquo;s not linger any longer and jump right in!</description>
+      <guid>https://technius.net/projects/</guid>
+      <description>Projects Here are some of the projects I&amp;rsquo;ve worked on in the past.
+Xournal++ Xournal++ is an open source, cross-platform note-taking program implemented in C++ using GTK 3. It is primarily used for taking hand-written notes via a stylus, but it also supports LaTeX, audio recordings, and text annotations. Xournal++ can also be used to annotate PDF files.
+I have been one of the primary maintainers of Xournal++ since early 2019: in addition to fixing bugs and implementing new features, I also triage issues, manage the build configuration, and create new releases.</description>
     </item>
     
     <item>
-      <title>About This Blog</title>
-      <link>https://technius.net/about/</link>
-      <pubDate>Sat, 17 Dec 2016 00:00:00 +0000</pubDate>
+      <title>Research</title>
+      <link>https://technius.net/research/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
       
-      <guid>https://technius.net/about/</guid>
-      <description>Hi! I&amp;rsquo;m Bryan Tan, a computer science student with a love for programming languages and mathematics. In particular, I enjoy writing and refining code to be as elegant as possible. Check out my posts to get a glimpse of what I like to do!
-This blog was generated using Hugo and uses the nofancy theme by Zack Guo.
-Except otherwise noted, (1) the articles are licensed under a CC-BY 4.0 license and (2) code snippets contained within the articles are licensed under the MIT License.</description>
-    </item>
-    
-    <item>
-      <title>Hello world!</title>
-      <link>https://technius.net/post/hello/</link>
-      <pubDate>Thu, 15 Dec 2016 00:00:00 +0000</pubDate>
-      
-      <guid>https://technius.net/post/hello/</guid>
-      <description>Obligatory hello world post.
-I&amp;rsquo;m setting up a blog again , but this time, I&amp;rsquo;m planning on actually posting stuff! This time, the goal is to improve my writing skills; though my grammar is quite good, I&amp;rsquo;m terrible at writing anything other than directions, code, or technical explanations (though I&amp;rsquo;ll probably end up spending most of my time on these types of writing). In particular, I have a really hard time putting essays together.</description>
+      <guid>https://technius.net/research/</guid>
+      <description>Research Profile Biography I&amp;rsquo;m Bryan Tan, a compiler engineer current working in the industry. I graduated from UC Santa Barbara in 2021 with a Master&amp;rsquo;s degree in Computer Science. While I was at UCSB, I worked with Prof. Yu Feng on several research projects related to program verification for domain-specific languages. I currently do not have any plans to rejoin academia, although I am still open to collaborating on research projects (subject to corporate legal approval).</description>
     </item>
     
   </channel>

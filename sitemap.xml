@@ -1,89 +1,42 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
-  
   <url>
-    <loc>https://technius.net/post/eithert-error-handling/</loc>
+    <loc>https://technius.net/posts/</loc>
     <lastmod>2017-11-02T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/post/akka-http-api-response-marshalling/</loc>
-    <lastmod>2017-03-24T23:54:00-07:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/post/rust-calculator-1/</loc>
-    <lastmod>2017-01-13T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/about/</loc>
-    <lastmod>2018-06-23T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/post/hello/</loc>
-    <lastmod>2016-12-15T00:00:00+00:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/tags/akka-http/</loc>
-    <lastmod>2017-03-24T23:54:00-07:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+  </url><url>
+    <loc>https://technius.net/categories/</loc>
+    <lastmod>2017-11-02T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://technius.net/posts/eithert-error-handling/</loc>
+    <lastmod>2017-11-02T00:00:00+00:00</lastmod>
+  </url><url>
     <loc>https://technius.net/</loc>
     <lastmod>2017-11-02T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/categories/</loc>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/categories/misc/</loc>
-    <lastmod>2018-06-23T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/post/</loc>
-    <lastmod>2017-11-02T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/tags/rest-api/</loc>
-    <lastmod>2017-03-24T23:54:00-07:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
-    <loc>https://technius.net/tags/scala/</loc>
-    <lastmod>2017-11-02T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+  </url><url>
     <loc>https://technius.net/categories/scala/</loc>
     <lastmod>2017-11-02T00:00:00+00:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+  </url><url>
+    <loc>https://technius.net/tags/scala/</loc>
+    <lastmod>2017-11-02T00:00:00+00:00</lastmod>
+  </url><url>
     <loc>https://technius.net/tags/</loc>
+    <lastmod>2017-11-02T00:00:00+00:00</lastmod>
+  </url><url>
+    <loc>https://technius.net/tags/akka-http/</loc>
     <lastmod>2017-03-24T23:54:00-07:00</lastmod>
-    <priority>0</priority>
-  </url>
-  
-  <url>
+  </url><url>
+    <loc>https://technius.net/posts/akka-http-api-response-marshalling/</loc>
+    <lastmod>2017-03-24T23:54:00-07:00</lastmod>
+  </url><url>
+    <loc>https://technius.net/tags/rest-api/</loc>
+    <lastmod>2017-03-24T23:54:00-07:00</lastmod>
+  </url><url>
     <loc>https://technius.net/tags/web/</loc>
     <lastmod>2017-03-24T23:54:00-07:00</lastmod>
-    <priority>0</priority>
+  </url><url>
+    <loc>https://technius.net/projects/</loc>
+  </url><url>
+    <loc>https://technius.net/research/</loc>
   </url>
-  
 </urlset>

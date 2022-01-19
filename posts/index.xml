@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>web on Bryan Tan&#39;s Website</title>
-    <link>https://technius.net/tags/web/</link>
-    <description>Recent content in web on Bryan Tan&#39;s Website</description>
+    <title>Blog on Bryan Tan&#39;s Website</title>
+    <link>https://technius.net/posts/</link>
+    <description>Recent content in Blog on Bryan Tan&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
     <copyright>Copyright (c) 2016-2022 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
-    <lastBuildDate>Fri, 24 Mar 2017 23:54:00 -0700</lastBuildDate><atom:link href="https://technius.net/tags/web/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate><atom:link href="https://technius.net/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Cleaner Error Handling in Scala with Cats EitherT</title>
+      <link>https://technius.net/posts/eithert-error-handling/</link>
+      <pubDate>Tue, 09 May 2017 22:04:06 -0700</pubDate>
+      
+      <guid>https://technius.net/posts/eithert-error-handling/</guid>
+      <description>Introduction In Scala, it&amp;rsquo;s a common practice to handle errors or perform validation using Option or Either. For example, a form on a website may be validated on a server by using a series of Eithers, which will return the valid model data or a message explaining the problems in the form submission. However, adding more complicated concerns into the Either sequence, such as Options or Futures, requires a lot of boilerplate.</description>
+    </item>
+    
     <item>
       <title>Improving Akka HTTP REST API Response Handling with Marshallers</title>
       <link>https://technius.net/posts/akka-http-api-response-marshalling/</link>

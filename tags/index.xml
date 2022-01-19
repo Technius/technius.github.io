@@ -1,37 +1,15 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>Tags on Bryan Tan&#39;s Blog</title>
+    <title>Tags on Bryan Tan&#39;s Website</title>
     <link>https://technius.net/tags/</link>
-    <description>Recent content in Tags on Bryan Tan&#39;s Blog</description>
+    <description>Recent content in Tags on Bryan Tan&#39;s Website</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <copyright>Copyright (c) 2016-2018 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
-    <lastBuildDate>Fri, 24 Mar 2017 23:54:00 -0700</lastBuildDate>
-    
-	<atom:link href="https://technius.net/tags/index.xml" rel="self" type="application/rss+xml" />
-    
-    
+    <copyright>Copyright (c) 2016-2022 Bryan Tan. Articles are licensed under CC-BY-4.0; code in articles licensed under MIT License.</copyright>
+    <lastBuildDate>Tue, 09 May 2017 22:04:06 -0700</lastBuildDate><atom:link href="https://technius.net/tags/index.xml" rel="self" type="application/rss+xml" />
     <item>
-      <title>Akka Http</title>
-      <link>https://technius.net/tags/akka-http/</link>
-      <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
-      
-      <guid>https://technius.net/tags/akka-http/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>Rest Api</title>
-      <link>https://technius.net/tags/rest-api/</link>
-      <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
-      
-      <guid>https://technius.net/tags/rest-api/</guid>
-      <description></description>
-    </item>
-    
-    <item>
-      <title>Scala</title>
+      <title>scala</title>
       <link>https://technius.net/tags/scala/</link>
       <pubDate>Tue, 09 May 2017 22:04:06 -0700</pubDate>
       
@@ -40,7 +18,25 @@
     </item>
     
     <item>
-      <title>Web</title>
+      <title>akka-http</title>
+      <link>https://technius.net/tags/akka-http/</link>
+      <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
+      
+      <guid>https://technius.net/tags/akka-http/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>rest-api</title>
+      <link>https://technius.net/tags/rest-api/</link>
+      <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
+      
+      <guid>https://technius.net/tags/rest-api/</guid>
+      <description></description>
+    </item>
+    
+    <item>
+      <title>web</title>
       <link>https://technius.net/tags/web/</link>
       <pubDate>Fri, 24 Mar 2017 23:54:00 -0700</pubDate>
       
