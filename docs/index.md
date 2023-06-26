@@ -7,12 +7,13 @@ hide:
 ## About Me
 
 I'm Bryan Tan, a software engineer with a love for programming language theory.
-In my day job, I help develop static analysis and formal verification tools at
-Veridise. Previously, I worked at AWS Annapurna Labs on compilers for machine
-learning hardware accelerators. I have a variety of interests, but I am most
-excited about functional programming, programming language theory, and
-compilers. Check out my [blog](blog) or my
-[research profile page](research.md) to get a glimpse of what I like to do!
+I currently work at Veridise, where I develop static analysis and formal
+verification tools that grew out of my [past research](research.md). Previously,
+I worked at AWS Annapurna Labs on compilers for machine learning hardware
+accelerators. I have a variety of interests, but I am most excited about
+functional programming, programming language theory, and compilers. Check out
+my [blog](blog) or my [research profile page](research.md) to get a glimpse of
+what I like to do!
 
 You can find me on [GitHub](https://github.com/Technius) and
 [LinkedIn](https://www.linkedin.com/in/bryan-tan-08153079). I'm also reachable
