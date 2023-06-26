@@ -1,9 +1,8 @@
-+++
-title = "Projects"
-
-[menu.main]
-weight = 5
-+++
+---
+title: "Projects"
+hide:
+  - navigation
+---
 
 # Projects
 
