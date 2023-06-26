@@ -9,6 +9,8 @@ nav:
 
 theme:
   name: material
+  palette:
+    primary: deep purple
   features:
     - navigation.tabs
 
