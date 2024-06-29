@@ -1,5 +1,6 @@
 site_name: Bryan Tan's Website
-remote_branch: site
+remote_branch: source
+site_url: https://technius.net
 nav:
   - Home: index.md
   - Research: research.md
