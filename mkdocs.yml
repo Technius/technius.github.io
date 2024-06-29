@@ -2,9 +2,9 @@ site_name: Bryan Tan's Website
 remote_branch: site
 nav:
   - Home: index.md
+  - Research: research.md
   - Projects: projects.md
 #   - About: about.md
-  - Research: research.md
   - Blog: blog/index.md
 
 theme:
