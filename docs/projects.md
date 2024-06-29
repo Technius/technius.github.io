@@ -19,18 +19,3 @@ files.
 I have been one of the primary maintainers of Xournal++ since early 2019: in
 addition to fixing bugs and implementing new features, I also triage issues,
 manage the build configuration, and create new releases.
-
-## SimPL
-
-[SimPL](https://github.com/Technius/simpl/) is a toy imperative programming
-language with some features inspired by functional programming (see the README
-for details on what the language is like). It has a compiler (implemented in
-Haskell) that targets LLVM. I started working on SimPL because I wanted to learn
-how to implement a compiler for a functional language, though I later lost
-interest in it.
-
-## Tempget
-
-[Tempget](https://github.com/Technius/tempget) is a cross-platform, parallel
-file downloader written in Rust. I wrote this because I got annoyed at having to
-write shell scripts to download files.
