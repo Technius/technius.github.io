@@ -41,3 +41,10 @@ markdown_extensions:
       permalink: true
   - admonition
   - mdx_truly_sane_lists
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.details
+
+extra_javascript:
+  - js/enhancements.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js
