@@ -1,6 +1,6 @@
 ---
 description: An example of applying ILP to solve an optimization problem.
-date: 2024-07-07
+date: 2024-07-09
 
 search:
   exclude: true
@@ -9,12 +9,13 @@ hide: [navigation, toc]
 
 # Optimizing FFXIV Trust EXP with Integer Linear Programming
 
-I've been a long time player of _Final Fantasy XIV_, and in the past weeks I've been playing its recently released expansion _Dawntrail_.
+I've been a long time player of _Final Fantasy XIV_, and in the past weeks I've
+been playing its recently released expansion _Dawntrail_.
 As is typical for expansions to massively-multiplayer online role-playing games,
 _Dawntrail_ raised the level cap--from level 90 to level 100.
 This also includes a corresponding increase to the level cap of the Trust
-system, a game mode where the player can form a party with three non-playable
-characters (NPCs) and take them into a dungeon.
+system, a game mode where the player can form a party with three AI-controlled
+non-playable characters (NPCs) and take them into a dungeon.
 Since each dungeon takes approximately 30 minutes to clear and there are 8 NPCs
 to level up in total, it would take quite a lot of time to get all NPCs to
 level 100.
@@ -22,7 +23,8 @@ level 100.
 This begs the question: what would be a strategy for minimizing the number of
 runs (i.e., time) required to get all NPCs to level 100?
 To get an answer, I ended up writing a calculator that can compute such a
-strategy, and I will be describing how it works in this article.
+strategy, and I will be describing how it works in this article--no background
+knowledge on FFXIV required.
 You can find the source code [here][calculator-sources].
 
 <!-- more -->
@@ -34,47 +36,85 @@ You can find the source code [here][calculator-sources].
     If you are playing FFXIV but haven't started the story for _Dawntrail_,
     proceed at your own risk.
 
-## The Optimization Problem in Detail
+## A Problem of Trust
 
-Before we think about a strategy, let's try to understand the problem more
-carefully.
+Before we think about a strategy, let's try to understand how Trusts work in
+detail.
+
+In the Trust system, the player selects a _party_ consisting of exactly four
+characters, where one character takes on the role of a "tank", one character
+takes on the role of a "healer", and two characters take on the role of "DPS".
+The player chooses which role they want to play themself, and then they choose
+AI-controlled NPCs to fill the remaining roles.
+Each NPC has a different set of roles; for example, one of them can only take
+on the tank role, while another character can take on two different roles.
+
+!!! example
+    One possible Trust party is one where the player decides to play as a healer
+    role, and then they choose the characters Thancred, Alphinaud, and Alisaie
+    for the tank and two DPS roles, respectively.
+
+    Thancred and Alisaie each only have one role.
+    However, Alphinaud may be chosen for either a healer or DPS role.
+
+Once the player has formed a party, they can then play through a _dungeon_.
+Each playthrough, which I will refer to as a "dungeon run", takes approximately
+30 minutes to complete.
+
+### Levels
+
+Every character has two numerical quantities called _level_ and _experience_
+(typically shortened as "EXP").
+The level is a reflection of the progress or strength of the character, and it
+is a general goal of the game to increase the level to its maximum value
+possible (the "level cap", which is 100 for _Dawntrail_).
+In order to increase the level, the player must accumulate _experience points_
+by accomplishing tasks, such as completing a Trust dungeon.
+
+Each dungeon has a minimum level requirement, such that a dungeon can only be
+run if all party members have a level exceeding that of the minimum.
+There are five _Dawntrail_ dungeons available with the Trust system, unlocked at
+levels 91, 93, 95, 97, and 99, respectively.
+For example, the level 95 dungeon can only be run by a party where all members
+are at least level 95.
+
+Once a dungeon run is fully complete, a fixed amount of EXP will be awarded to
+all Trust NPCs that participated in that run.
+Higher level dungeons award more EXP.
+
+For the dungeons from levels 91 to 100, the Trust system provides 8 NPCs that
+may be used in parties.
+The amount of EXP required to level an NPC up increases as the NPC's level
+increases;
+however, for each level, the amount of EXP required to level up is the same for
+all characters.
+
+### Trust EXP
 
 The problem, which I will call the "Trust EXP Problem", consists of coming up
 with a list of parties (duplicates allowed) that can be be used in Trust dungeon
 runs, such that the NPCs can be levelled up from level 91 to level 100.
-
-* In the Trust system, each party consists of exactly four characters, where one
-  character takes on the role of a "tank", one character takes on the role of a
-  "healer", and two characters take on the role of "DPS".
-  The player chooses which role they want to take on, and then they choose NPCs
-  to fill the remaining roles.
-* From levels 91 to 100, the Trust system provides 8 NPCs to play with.
-* The amount of EXP required to level an NPC up increases as the NPC's level
-  increases;
-  however, for each level, the amount of EXP to level up is the same for all
-  characters.
-* Each NPC has a different set of roles; for example, one of them can only take
-  on the tank role, while another character can take on two different roles.
-* There are dungeons unlocked at levels 91, 93, 95, 97, and 99.
-  A dungeon can only be run if all party members have a level exceeding that of
-  the dungeon's.
-  For example, the level 95 dungeon can only be run by a party where all members
-  are at least level 95.
-* Once a dungeon run is fully complete, a fixed amount of EXP will be awarded to
-  all Trust NPCs that participated in that run.
-  Higher level dungeons award more EXP.
-
-While the EXP considerations are significant, it is the number of runs that are
-the most important for this problem.
-For example, the level 91 dungeon awards about 5.8 million EXP, but leveling up
-from 91 to 92 requires 13 million EXP.
-It will therefore take 3 dungeon runs to level up from 91 to 92.
+Specifically, we would like to minimize the total number of dungeon runs that
+must be performed so-as to save time.
 
 I'll use the term "strategy" to refer to a solution to the problem.
 For example, a strategy for leveling all eight NPCs from level 91 to 92 could be
 to run the dungeon three times with the first three NPCs, run the dungeon three
 times with the next three NPCs, and then run the dungeon three more times with
 any party that contains the last two NPCs.
+
+!!! note
+    EXP considerations are somewhat secondary here as they are a somewhat
+    continuous measurement of the progress towards leveling up.
+    One issue is that EXP is awarded in discrete, not continuous chunks.
+    For example, the level 91 dungeon awards about 5.8 million EXP, but leveling up
+    from 91 to 92 requires 13 million EXP.
+    It will therefore take 3 dungeon runs to level up from 91 to 92.
+    However, those 3 runs will award more EXP than is required to level up.
+
+    We will focus on the number of runs initially.
+    Later, we will see that EXP needs to be factored in to construct a better
+    strategy.
 
 ## Formulating the Trust EXP Problem as an ILP problem
 
@@ -673,7 +713,7 @@ Excluding the healer role excludes a larger number of better strategies, though
 I understand why someone might not be interested in playing as a healer in
 Trust dungeons...
 
-## Was this worth it?
+## Was this worth the time?
 
 In total, I spent around an afternoon writing the calculator and had a lot of
 fun in the process (more than I did playing the game).
@@ -686,8 +726,8 @@ You can find my email address on the home page.)
 
 Would it be worth spending 31 hours trying to level up all Trust NPCs from 91 to
 100?
-That's something you'll have to ask yourself.
-Personally, I'm not sure if I want to.
+It might be a nice side goal if you primarily play DPS roles and you don't want
+to bother with long matchmaking queues.
 
 In any case, you can find the source code for the calculator
 [here][calculator-sources].
