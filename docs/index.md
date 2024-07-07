@@ -14,7 +14,7 @@ Previously, I worked at AWS Annapurna Labs on the AWS Neuron compiler frontend
 for the Inferentia and Tranium AI accelerators.
 I have a variety of interests, but I am most excited about static analysis,
 compiler optimizations, and domain-specific languages.
-Check out my [blog](blog) or my [academic research profile page](research.md) to
+Check out my [blog](blog/index.md) or my [academic research profile page](research.md) to
 get a glimpse of what I like to do!
 
 You can find me on [GitHub](https://github.com/Technius) and
