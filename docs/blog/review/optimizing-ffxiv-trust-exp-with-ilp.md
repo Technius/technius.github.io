@@ -1,24 +1,26 @@
 ---
 description: An example of applying ILP to solve an optimization problem.
 date: 2024-07-07
-draft: true
+
+search:
+  exclude: true
+hide: [navigation, toc]
 ---
 
 # Optimizing FFXIV Trust EXP with Integer Linear Programming
 
-I've been a long time player of _Final Fantasy XIV_, and its latest expansion
-_Dawntrail_ came out recently.
-Like other massively-multiplayer online role-playing games, the expansion raised
-the level cap from 90 to 100.
-This also includes raising the level cap of the Trust system--a game mode where
-the player can form a party with three non-playable characters (NPCs) and take
-them into a dungeon--to 100 as well.
+I've been a long time player of _Final Fantasy XIV_, and in the past weeks I've been playing its recently released expansion _Dawntrail_.
+As is typical for expansions to massively-multiplayer online role-playing games,
+_Dawntrail_ raised the level cap--from level 90 to level 100.
+This also includes a corresponding increase to the level cap of the Trust
+system, a game mode where the player can form a party with three non-playable
+characters (NPCs) and take them into a dungeon.
 Since each dungeon takes approximately 30 minutes to clear and there are 8 NPCs
-to level up in total, it would take quite a lot of hours to get all NPCs to
+to level up in total, it would take quite a lot of time to get all NPCs to
 level 100.
 
 This begs the question: what would be a strategy for minimizing the number of
-runs required to get all NPCs to level 100?
+runs (i.e., time) required to get all NPCs to level 100?
 To get an answer, I ended up writing a calculator that can compute such a
 strategy, and I will be describing how it works in this article.
 You can find the source code [here][calculator-sources].
@@ -95,6 +97,8 @@ quantities.
 The general idea is to mathematically model an optimization problem as an ILP
 problem, and then use an off-the-shelf ILP solver to that can efficiently search
 for a solution to the problem.
+Once we obtain a solution to the ILP problem, we can transform it into a
+solution for the original optimization problem.
 
 An ILP problem can be formally defined as follows:
 
@@ -105,11 +109,12 @@ An ILP problem can be formally defined as follows:
 > \mathbf{A}\vec{x} \geq \vec{b}
 > $$
 
-In plainer language, modeling typically involves three parts:
+In plainer language, formulating an optimization problem as an ILP problem
+involves three parts:
 
 1. Defining the numerical quantities involved in the problem (the $\vec{c}$,
    $\vec{b}$, and $\vec{x}$ part).
-   Importantly, the $\vec{x}$ part refers to the "solution" to the problem.
+   Importantly, the $\vec{x}$ part is the "solution" to the ILP problem.
 2. Constructing _constraints_ that define when a potential solution is valid
    (the $\mathbf{A}\vec{x} \geq \vec{b}$ part).
    In ILP terminology, a solution that satisfies all of the constraints is
@@ -120,34 +125,41 @@ In plainer language, modeling typically involves three parts:
 !!! tip
     You may have seen ILP problems where the problem is to maximize the
     objective function subject to upper-bound constraints.
-    Any ILP maximization problem can be transformed into a minimization problem,
-    and vice versa.
+    Any ILP maximization problem can be transformed into a similar minimization
+    problem, and vice versa.
     This is known as _duality_, and there are several nice theorems that relate
     the solutions of an ILP problem and those of its dual.
 
-### Teaming up the NPCs
+### You are not without allies
 
-I will mathematically define the numerical quantities involved as follows:
+Since teams are central to the Trust EXP Problem, it's useful to precisely
+define what we mean by "team".
 
-* Define a _team_ as a triple of NPCs that are used to form a party.
+* A _team_ $t$ is a triple of NPCs that are used to form a party.
   There are three categories of teams, depending on which role the player
   chooses for themself:
   1. A team consisting of one healer and two DPS.
   2. A team consisting of one tank and two DPS.
   3. A team consisting of one tank, one healer, and one
 
-  For example, (Thancred, Alphinaud, Alisaie) is a team where the members take
+  For example, $t = \text{(Thancred, Alphinaud, Alisaie)}$ is a team where the members take
   on the tank, healer, and DPS role, respectively.
 
 * Let $T$ mean the set of all possible teams.
   This can be computed by enumerating the teams in each category.
-* For each team $t$, define the _count_ of the team $C(t)$ as the number of
-  times the team $t$ is taken on a dungeon run.
-* A _strategy_ consists of a definition of the function $C(t)$, conceptually
-  describing which teams to use and how many times each team should be used.
+  Notation-wise, let's assume the teams are numbered from 1 to $|T|$.
+* Define the _count_ $C_t$ of a team $t$ as the number of times $t$ is taken on
+  a dungeon run.
+  We'll abuse the notation here to allow a number as a subscript, e.g. $C_1$
+  refers to the team numbered as 1.
+* A _strategy_ is a vector
+  $\vec{x} = \left\langle{C_1, \dots, C_{|T|}}\right\rangle$
+  that serves as a solution to the ILP problem.
+  Note that I'll use the term "strategy" to refer to both an ILP solution and a
+  solution to the Trust EXP Problem, as it is trivial to transform between them.
 
-For example, the strategy where $C((\text{Thancred, Alphinaud, Alisaie})) = 3$
-and $C(t) = 0$ for all other teams $t$ means that the team (Thancred,
+For example, the strategy where $C_{(\text{Thancred, Alphinaud, Alisaie})} = 3$
+and $C_t = 0$ for all other teams $t$ is one where the team (Thancred,
 Alphinaud, Alisaie) should be used three times (which will level them up from
 91 to 92), but no other dungeon runs should be performed.
 
@@ -155,8 +167,8 @@ Alphinaud, Alisaie) should be used three times (which will level them up from
 
 In order to level up all of the NPCs, we have to actually pick a minimum number
 of teams in order to make progress.
-As an example, consider the strategy $C(t) = 0$ for all teams; this represents a
-strategy where we don't do any dungeon runs.
+As an example, consider the strategy $C_t = 0$ for all teams; this represents a
+strategy where no dungeon runs are undertaken.
 We'd _never_ want to consider a strategy like this, since it won't actually
 solve the problem.
 
@@ -172,24 +184,34 @@ For example, to go level 91 to 92, each NPC needs to be involved in $M
 We can calculate the total number of dungeon runs an NPC $c$ is involved in by
 counting the total number of times the teams involving $c$ are used.
 Specifically, given a team $t$, we want some quantity that is 0 when $c$ is
-_not_ on $t$ and $C(t)$ when $c$ is on $t$.
+_not_ on $t$ and $C_t$ when $c$ is on $t$.
 This can be expressed using the sum:
 
 $$
-\sum_{t \in T} I[c \in t]C(t)
+\sum_{t \in T} I[c \in t]C_t
 $$
 
 where $I$ is the indicator function.
 The indicator function is defined as 0 when the given predicate is true or 1
 otherwise.
 
-Finally, we can relate this count back to $M$ by imposing the following
-constraint on each NPC $c$:
+We can relate this count back to $M$ by imposing the following constraint on
+each NPC $c$:
 
 $$
-\sum_{t \in T} I[c \in t]C(t) \geq M
+\sum_{t \in T} I[c \in t]C_t \geq M
 $$
 
+We also need to restrict each $C_t$ so that it can't be negative, as it
+doesn't make any sense to select a team a negative number of times.
+
+$$
+C_t \geq 0
+$$
+
+To relate this back to the matrix $\mathbf{A}$ and the vector $\vec{b}$, the
+rows of $\mathbf{A}$ are the left-hand side of the constraints, while the
+components of $\vec{b}$ come from the right-hand side of the constraints.
 
 ### Sizing up a strategy
 
@@ -197,12 +219,13 @@ Ideally, we would want the strategy to involve as few dungeon runs as possible.
 Since each dungeon run corresponds to one team, this means we want to minimize
 the total number of teams that are used.
 
-Formally, we can define the quantity to minimize as the following objective
-function:
+That is, we can define the objective function $\vec{c} \cdot \vec{x}$ as:
 
 $$
-\sum_{t \in T} C(t)
+\vec{c} \cdot \vec{x} = \sum_{t \in T} C_t
 $$
+
+(Here, $\vec{c}$ is a vector where each component is 1).
 
 ### Trust EXP problem, formally
 
@@ -210,13 +233,13 @@ With all the pieces in place, we can state the Trust EXP problem as the
 following ILP problem:
 
 > Given the minimum number of runs per character $M$ and a set of teams $T$,
-> find the team count vector $\vec{x}$ that minimizes $\sum_{t \in T} C(t)$,
+> find the team count vector $\vec{x}$ that minimizes $\sum_{t \in T} C_t$,
 > subject to the constraints
 >
 > $$
 > \begin{align*}
-> \sum_{t \in T} I[c \in t]C(t) \geq M \\
-> C(t) \geq 0 \text{ for all } t
+> \sum_{t \in T} I[c \in t]C_t \geq M \\
+> C_t \geq 0 \text{ for all } t
 > \end{align*}
 > $$
 
@@ -370,8 +393,9 @@ compute the optimal strategy.
 However, it's easier to think of the strategy in terms of what level to start
 with and what level we want to end at.
 With just the starting and ending level, we can automatically compute the
-minimum runs per character as long as we have the EXP table for each character
-level and the [Trust EXP table][trust-exp-table] from ConsoleGames Wiki.
+minimum runs per character as long as we have the [EXP table][level-exp-table]
+for each character level and the [Trust EXP table][trust-exp-table] from
+ConsoleGames Wiki.
 Specifically, we can divide the EXP required to reach the next level by the
 amount of EXP awarded per dungeon run, and then round up:
 
@@ -638,13 +662,16 @@ How well does the ILP method compare to the known strategies?
 I couldn't find any known strategies for _Dawntrail_ likely due to its release
 being too recent, but there are known strategies for the _Endwalker_ dungeons.
 
-* The best known existing strategy for the _Endwalker_ dungeons
-  [that I was able to find online][ew-strat] uses a total of 55 runs.
-  The calculator in this article finds a strategy involving 25 runs, which is
-  less than half the amount!
-* When calculating a solution for the _Dawntrail_ dungeons, excluding Krile from
-  the list will lead to an optimal strategy of 54 runs.
-  That's pretty close to the best known strategy for _Endwalker_.
+The best known existing strategy for the _Endwalker_ dungeons [that I was able
+to find online][ew-strat] uses a total of 38 runs.
+The calculator described in this article finds a strategy involving 25 runs,
+which is quite a bit better.
+The main difference is that the 38-run strategy assumes the player only chooses
+a tank role or a DPS role, while the 25-run strategy assumes the player can play
+any role.
+Excluding the healer role excludes a larger number of better strategies, though
+I understand why someone might not be interested in playing as a healer in
+Trust dungeons...
 
 ## Was this worth it?
 
@@ -663,9 +690,11 @@ That's something you'll have to ask yourself.
 Personally, I'm not sure if I want to.
 
 In any case, you can find the source code for the calculator
-[calculator-sources][here].
+[here][calculator-sources].
 
 
+[ew-strat]: https://reddit.com/r/ffxiv/comments/tdli9c/optimal_and_less_complicate_trust_levelling_guide/
+[level-exp-table]: https://ffxiv.consolegameswiki.com/wiki/Experience#Required_EXP_by_Level
 [trust-exp-table]: https://ffxiv.consolegameswiki.com/wiki/Trust#Compatible_Duties
 [trust-npc-table]: https://ffxiv.consolegameswiki.com/wiki/Trust#NPC_Avatars
 [ortools]: https://developers.google.com/optimization/introduction
